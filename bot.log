@@ -19,3 +19,115 @@
 2025-02-24 13:37:31 - INFO - Пользователь 847687859 запустил команду /help
 2025-02-24 13:37:45 - WARNING - Завершение работы...
 2025-02-24 13:37:45 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 19:47:33 - INFO - Бот запущен
+2025-02-24 19:47:42 - INFO - Пользователь 847687859 запустил команду /help
+2025-02-24 19:47:59 - INFO - Сообщение от 847687859: понял тебя
+2025-02-24 19:48:18 - WARNING - Завершение работы...
+2025-02-24 19:48:18 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 21:05:30 - INFO - Бот запущен
+2025-02-24 21:05:39 - INFO - Пользователь 847687859 запустил команду /help
+2025-02-24 21:05:45 - INFO - Сообщение от 847687859: давай пока
+2025-02-24 21:06:03 - WARNING - Завершение работы...
+2025-02-24 21:06:03 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 21:07:13 - INFO - Бот запущен
+2025-02-24 21:07:21 - INFO - Сообщение от 847687859: давай пока
+2025-02-24 21:08:03 - WARNING - Завершение работы...
+2025-02-24 21:08:03 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 21:08:10 - INFO - Бот запущен
+2025-02-24 21:08:15 - INFO - Сообщение от 847687859: давай пока
+2025-02-24 21:08:15 - WARNING - Завершение работы...
+2025-02-24 21:09:40 - WARNING - Завершение работы...
+2025-02-24 21:09:40 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 23:19:45 - ERROR - Ошибка: name 'aiosqlite' is not defined
+Traceback (most recent call last):
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 43, in main
+    db_connection = await aiosqlite.connect('bot.db')
+                          ^^^^^^^^^
+NameError: name 'aiosqlite' is not defined
+2025-02-24 23:19:45 - WARNING - Завершение работы...
+2025-02-24 23:19:45 - CRITICAL - Ошибка в главном цикле: name 'db_shutdown' is not defined
+Traceback (most recent call last):
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 56, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\User\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\User\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\User\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 52, in main
+    await bot_shutdown(dp)
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 36, in bot_shutdown
+    await db_shutdown()
+          ^^^^^^^^^^^
+NameError: name 'db_shutdown' is not defined. Did you mean: 'bot_shutdown'?
+2025-02-24 23:20:15 - INFO - Подключение к базе данных
+2025-02-24 23:20:15 - ERROR - Ошибка инициализации базы данных: 'NoneType' object has no attribute 'cursor'
+2025-02-24 23:20:15 - INFO - Бот запущен
+2025-02-24 23:21:11 - WARNING - Завершение работы...
+2025-02-24 23:21:11 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 23:24:40 - INFO - Подключение к базе данных
+2025-02-24 23:24:40 - INFO - Бот запущен
+2025-02-24 23:24:52 - INFO - Пользователь 847687859 запустил бота
+2025-02-24 23:25:01 - WARNING - Завершение работы...
+2025-02-24 23:25:01 - CRITICAL - Ошибка в главном цикле: name 'db_connection' is not defined
+Traceback (most recent call last):
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 48, in main
+    await dp.start_polling(bot)
+  File "C:\Users\User\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 543, in start_polling
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\Lib\asyncio\tasks.py", line 451, in wait
+    return await _wait(fs, timeout, return_when, loop)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\Lib\asyncio\tasks.py", line 537, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 56, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\User\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\User\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\User\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 52, in main
+    await bot_shutdown(dp)
+  File "c:\Users\Пользователь\Desktop\проектрирование по\main.py", line 36, in bot_shutdown
+    await db_shutdown()
+  File "c:\Users\Пользователь\Desktop\проектрирование по\database.py", line 51, in db_shutdown
+    if db_connection:
+       ^^^^^^^^^^^^^
+NameError: name 'db_connection' is not defined
+2025-02-24 23:37:26 - INFO - Подключение к базе данных
+2025-02-24 23:37:26 - INFO - Таблица создана
+2025-02-24 23:37:26 - INFO - Бот запущен
+2025-02-24 23:37:33 - INFO - Пользователь добавлен
+2025-02-24 23:37:33 - INFO - Пользователь 847687859 запустил бота
+2025-02-24 23:37:53 - WARNING - Завершение работы...
+2025-02-24 23:37:53 - INFO - Отключение от базы данных
+2025-02-24 23:37:53 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 23:38:29 - INFO - Подключение к базе данных
+2025-02-24 23:38:29 - INFO - Таблица создана
+2025-02-24 23:38:29 - INFO - Бот запущен
+2025-02-24 23:38:34 - WARNING - Завершение работы...
+2025-02-24 23:38:34 - INFO - Отключение от базы данных
+2025-02-24 23:38:34 - WARNING - Бот остановлен пользователем (Ctrl+C)
+2025-02-24 23:41:10 - INFO - Подключение к базе данных
+2025-02-24 23:41:10 - INFO - Таблица создана
+2025-02-24 23:41:10 - INFO - Бот запущен
+2025-02-24 23:41:19 - WARNING - Завершение работы...
+2025-02-24 23:41:19 - INFO - Отключение от базы данных
+2025-02-24 23:41:19 - WARNING - Бот остановлен пользователем (Ctrl+C)
