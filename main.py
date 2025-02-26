@@ -5,7 +5,7 @@ from logger import logger  # Импортируем наш логгер
 from database import *
 
 # Инициализация бота
-bot = Bot(token='*')
+bot = Bot(token='8102983217:AAFaWgb-LA00UJ9gstOxcqhtSrkIRH8LWgc')
 dp = Dispatcher()
 
 @dp.message(Command('start'))
