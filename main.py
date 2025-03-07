@@ -3,9 +3,15 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from logger import logger  # Импортируем наш логгер
 from database import *
+from keyboard_builder import *
+from aiogram import F
+from dotenv import load_dotenv
+import os
 
 # Инициализация бота
-bot = Bot(token='8102983217:AAFaWgb-LA00UJ9gstOxcqhtSrkIRH8LWgc')
+load_dotenv()
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 @dp.message(Command('start'))
@@ -22,6 +28,20 @@ async def cmd_help(message: types.Message):
                          '\n/todo - TODO лист (пока не работает)'
                          '\n/game - играть (пока не работает)'
                          '\n/notifications - уведомления (пока не работает)')
+
+@dp.message(Command('schedule'))
+async def cmd_schedule(message: types.Message):
+    logger.info(f"Пользователь {message.from_user.id} запустил команду /schedule")
+    await message.answer(f'Тест кнопок           ', reply_markup=get_keyboard_week('03.03.2025 - 09.03.2025'))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'today'))
+async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(f'Тест кнопок', reply_markup=get_keyboard_day('05.03.2025'))
+
+@dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
+async def echo_1(message: types.Message):
+    await message.answer('СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ ИЗ ВАС🙏❤️БОЖЕ ХРАНИ Z🙏❤️СПАСИБО ВАМ НАШИ Z🙏🏼❤️🇷🇺 ХРОНИ Z✊🇷🇺💯Слава Богу Z🙏❤️СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ')
+
 
 @dp.message()
 async def echo(message: types.Message):
@@ -44,7 +64,6 @@ async def main():
         logger.error(f"Ошибка: {e}", exc_info=True)
     finally:
         user = await db.get_user(847687859)
-        print(user)
         await bot_shutdown(dp)
 
 if __name__ == '__main__':
