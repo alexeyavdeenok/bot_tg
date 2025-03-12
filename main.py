@@ -7,18 +7,31 @@ from keyboard_builder import *
 from aiogram import F
 from dotenv import load_dotenv
 import os
+from schedule import *
 
 # Инициализация бота
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+user_schedules = {}
 
 @dp.message(Command('start'))
 async def cmd_start(message: types.Message):
-    await db.add_user(message.from_user.id, message.from_user.username)
-    logger.info(f"Пользователь {message.from_user.id} запустил бота")
-    await message.answer('Привет! Я простой бот.')
+    user_id = message.from_user.id
+    username = message.from_user.username
+    
+    # Добавляем пользователя в базу данных
+    await db.add_user(user_id, username)
+    
+    # Создаем начальное расписание для пользователя
+    schedule = Schedule(user_id, db)
+    
+    # Сохраняем расписание в базе данных
+    schedule.save_to_database()
+    
+    logger.info(f"Пользователь {user_id} запустил бота и создал расписание")
+    await message.answer('Привет! Я простой бот. Твое расписание создано.')
 
 @dp.message(Command('help'))
 async def cmd_help(message: types.Message):
@@ -32,12 +45,49 @@ async def cmd_help(message: types.Message):
 @dp.message(Command('schedule'))
 async def cmd_schedule(message: types.Message):
     logger.info(f"Пользователь {message.from_user.id} запустил команду /schedule")
-    await message.answer(f'Тест кнопок           ', reply_markup=get_keyboard_week('03.03.2025 - 09.03.2025'))
+    user_id = message.from_user.id
+    
+    # Проверяем, есть ли расписание пользователя в словаре
+    if user_id not in user_schedules:
+        # Если нет, создаем новое расписание и загружаем его из базы данных
+        schedule = Schedule(user_id, db)
+        await schedule.load_events()
+        user_schedules[user_id] = schedule
+    else:
+        # Если есть, используем существующее расписание
+        schedule = user_schedules[user_id]
+
+    await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'today'))
 async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
-    await callback.message.edit_text(f'Тест кнопок', reply_markup=get_keyboard_day('05.03.2025'))
+    await callback.message.edit_text(f'Тест кнопок', reply_markup=get_keyboard_day())
 
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'change'))
+async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    schedule = user_schedules[callback.from_user.id]
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'back_day'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    schedule = user_schedules[callback.from_user.id]
+    if value == -1:
+        schedule.prev_day()
+    else:
+        schedule.next_day()
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_week'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    """
+    добавить проверку недели или возвращаться всегда к текущей как вариант 
+    """
+    schedule = user_schedules[callback.from_user.id]
+    schedule.return_to_current_day()
+    await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week())
+
+    
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
 async def echo_1(message: types.Message):
     await message.answer('СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ ИЗ ВАС🙏❤️БОЖЕ ХРАНИ Z🙏❤️СПАСИБО ВАМ НАШИ Z🙏🏼❤️🇷🇺 ХРОНИ Z✊🇷🇺💯Слава Богу Z🙏❤️СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ')

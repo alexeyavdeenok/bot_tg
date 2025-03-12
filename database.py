@@ -72,6 +72,18 @@ class Database:
                     FOREIGN KEY(user_id) REFERENCES users(user_id)
                 )
             """)
+            await cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schedule_events (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    date TEXT,
+                    start_time TEXT,
+                    end_time TEXT,
+                    title TEXT,
+                    is_important BOOLEAN DEFAULT 0,
+                    FOREIGN KEY(user_id) REFERENCES users(user_id)
+                )
+            """)
 
             await self.connection.commit()
 
@@ -111,3 +123,38 @@ class Database:
                 (user_id,),
             )
             return await cursor.fetchall()
+    
+    async def add_schedule_event(self, user_id: int, date: str, start_time: str, end_time: str, title: str, is_important: bool = False):
+        """Добавляет новое событие в расписание."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "INSERT INTO schedule_events (user_id, date, start_time, end_time, title, is_important) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, date, start_time, end_time, title, int(is_important)),
+            )
+            await self.connection.commit()
+            logger.info(f"Событие '{title}' добавлено для пользователя {user_id}")
+
+    async def get_schedule_events(self, user_id: int, date: str = None):
+        """Получает все события пользователя. Если указана дата, возвращает события за эту дату."""
+        async with self.connection.cursor() as cursor:
+            if date:
+                await cursor.execute(
+                    "SELECT event_id, date, start_time, end_time, title, is_important FROM schedule_events WHERE user_id = ? AND date = ?",
+                    (user_id, date),
+                )
+            else:
+                await cursor.execute(
+                    "SELECT event_id, date, start_time, end_time, title, is_important FROM schedule_events WHERE user_id = ?",
+                    (user_id,),
+                )
+            return await cursor.fetchall()
+
+    async def delete_schedule_event(self, event_id: int):
+        """Удаляет событие по его ID."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "DELETE FROM schedule_events WHERE event_id = ?",
+                (event_id,),
+            )
+            await self.connection.commit()
+            logger.info(f"Событие с ID {event_id} удалено")
