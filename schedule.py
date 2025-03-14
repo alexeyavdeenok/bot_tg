@@ -187,7 +187,7 @@ class Day:
         self.list_events.pop(index)
     
     def __str__(self):
-        return f'{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}\n' f'{'-'*30}\n'+'\n'.join(str(i) for i in self.list_events)
+        return f'{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}\n' f'{'_'*35}\n'+'\n'.join(str(i) for i in self.list_events) + f'\n{'=' * 30}'
 
 class Event:
     def __init__(self, start, end, title, is_important=False):
@@ -202,7 +202,8 @@ class Event:
     def set_start(self, start):
         first, second = start.split(':')
         if int(first) >= 0 and int(first) < 10:
-            first = '0' + first
+            #first = '0' + first
+            pass
         elif int(first) >= 10 and int(first) <= 24:
             pass
         else:
@@ -216,7 +217,8 @@ class Event:
     def set_end(self, end):
         first, second = end.split(':')
         if int(first) >= 0 and int(first) < 10:
-            first = '0' + first
+            #first = '0' + first
+            pass
         elif int(first) >= 10 and int(first) <= 24:
             pass
         else:

@@ -8,13 +8,58 @@ from aiogram import F
 from dotenv import load_dotenv
 import os
 from schedule import *
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+import re
 
 # Инициализация бота
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 user_schedules = {}
+
+class AddEventStates(StatesGroup):
+    waiting_for_event_details = State()
+
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == "add"))
+async def start_adding_event(callback: types.CallbackQuery, state: FSMContext):
+    message_to_delete = await callback.message.edit_text("Введите событие в формате: 00:00 - 00:01 название", reply_markup=get_user_event())
+    await state.update_data(message_to_delete=message_to_delete)
+    await state.set_state(AddEventStates.waiting_for_event_details)
+    
+@dp.message(AddEventStates.waiting_for_event_details)
+async def handle_event_details(message: types.Message, state: FSMContext):
+    # Регулярное выражение для парсинга строки: время начала, время окончания и название события
+    data = await state.get_data()
+    if data:
+        message_to_delete = data.get('message_to_delete')
+    else: message_to_delete = None
+    if message_to_delete is not None:
+        await message_to_delete.delete()
+    pattern = r"(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+(.+)"
+    match = re.match(pattern, message.text)
+    if match:
+        start_time, end_time, event_title = match.groups()
+        await message.delete()  # Удаляем сообщение пользователя для чистоты диалога
+        await state.clear()  # Очищаем состояние после получения данных
+        schedule = user_schedules[message.from_user.id]
+        try:
+            schedule.add_event(start_time, end_time, event_title)
+        except Exception as e:
+            await message.answer("Невозможно добавить событие. Проверьте время и название.", reply_markup=get_user_event())
+        await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
+    else:
+        await message.answer("Неверный формат. Пожалуйста, введите событие в формате: 00:00 - 00:01 название", reply_markup=get_user_event())
+        await state.clear()
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'back_to_change'))
+async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    schedule = user_schedules[callback.from_user.id]
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
 
 @dp.message(Command('start'))
 async def cmd_start(message: types.Message):
@@ -61,7 +106,10 @@ async def cmd_schedule(message: types.Message):
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'today'))
 async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
-    await callback.message.edit_text(f'Тест кнопок', reply_markup=get_keyboard_day())
+    schedule = user_schedules[callback.from_user.id]
+    schedule.return_to_current_day()
+    schedule.return_to_current_week()
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'change'))
 async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -80,14 +128,37 @@ async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCal
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_week'))
 async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
-    """
-    добавить проверку недели или возвращаться всегда к текущей как вариант 
-    """
     schedule = user_schedules[callback.from_user.id]
     schedule.return_to_current_day()
     await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week())
 
-    
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'choose_day'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    schedule = user_schedules[callback.from_user.id]
+    await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_choose_day(schedule.week_to_show.list_days))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'back_week'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    schedule = user_schedules[callback.from_user.id]
+    if value == -1:
+        schedule.prev_week()
+    else:
+        schedule.next_week()
+    if schedule.weeks.index(schedule.week_to_show) == 0:
+        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week_first())
+    elif schedule.weeks.index(schedule.week_to_show) == len(schedule.weeks) - 1:
+        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week_last())
+    else:
+        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'choose'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    schedule = user_schedules[callback.from_user.id]
+    schedule.choose_day(value)
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
 async def echo_1(message: types.Message):
     await message.answer('СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ ИЗ ВАС🙏❤️БОЖЕ ХРАНИ Z🙏❤️СПАСИБО ВАМ НАШИ Z🙏🏼❤️🇷🇺 ХРОНИ Z✊🇷🇺💯Слава Богу Z🙏❤️СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ')

@@ -49,7 +49,7 @@ def get_keyboard_week_last():
 def get_keyboard_week_first():
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=">", callback_data=NumbersCallbackFactory(action="back_week", value=-1)
+        text=">", callback_data=NumbersCallbackFactory(action="back_week", value=+1)
     )
     builder.button(
         text="Текущий день", callback_data=NumbersCallbackFactory(action="today")
@@ -103,4 +103,6 @@ def get_keyboard_choose_day(list_days):
     return builder.as_markup()
 
 def get_user_event():
-    pass
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='back_to_change'))
+    return builder.as_markup()
