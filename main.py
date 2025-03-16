@@ -48,10 +48,13 @@ async def handle_event_details(message: types.Message, state: FSMContext):
         await state.clear()  # Очищаем состояние после получения данных
         schedule = user_schedules[message.from_user.id]
         try:
-            schedule.add_event(start_time, end_time, event_title)
+            Schedule.validate_event_time(start_time, end_time)
+            even_id = await db.add_schedule_event(message.from_user.id, schedule.day_to_show.date_, start_time, end_time, event_title)
+            schedule.add_event(start_time, end_time, event_title, True, even_id)
+            await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
         except Exception as e:
+            logger.error(f"Ошибка при добавлении события: {e}", exc_info=True)
             await message.answer("Невозможно добавить событие. Проверьте время и название.", reply_markup=get_user_event())
-        await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
     else:
         await message.answer("Неверный формат. Пожалуйста, введите событие в формате: 00:00 - 00:01 название", reply_markup=get_user_event())
         await state.clear()
@@ -159,6 +162,33 @@ async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCal
     schedule.choose_day(value)
     await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
 
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'delete'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    schedule = user_schedules[callback.from_user.id]
+    event_to_delete = schedule.day_to_show.list_events[value]
+    await db.delete_schedule_event(event_to_delete.event_id)
+    schedule.delete_event(value)
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'important'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    schedule = user_schedules[callback.from_user.id]
+    event_to_change = schedule.day_to_show.list_events[value]
+    schedule.change_important(value)
+    await db.update_event_important(event_to_change.event_id, event_to_change.is_important)
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_day'))
+async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    schedule = user_schedules[callback.from_user.id]
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'to_schedule'))
+async def show_schedule(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await cmd_schedule(callback.message)
+    
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
 async def echo_1(message: types.Message):
     await message.answer('СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ ИЗ ВАС🙏❤️БОЖЕ ХРАНИ Z🙏❤️СПАСИБО ВАМ НАШИ Z🙏🏼❤️🇷🇺 ХРОНИ Z✊🇷🇺💯Слава Богу Z🙏❤️СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ')

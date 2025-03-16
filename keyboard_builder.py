@@ -58,7 +58,7 @@ def get_keyboard_week_first():
         text="Выбрать день", callback_data=NumbersCallbackFactory(action="choose_day")
     )
     builder.button(
-        text="Назад", callback_data=NumbersCallbackFactory(action="cancel"))
+        text="В меню", callback_data=NumbersCallbackFactory(action="cancel"))
     builder.adjust(1, 1, 1, 1)
     return builder.as_markup()
 
@@ -73,7 +73,7 @@ def get_keyboard_day():
     builder.button(text='Изменить', callback_data=NumbersCallbackFactory(action='change'))
     builder.button(
         text="Расписание на неделю", callback_data=NumbersCallbackFactory(action="cancel_to_week"))
-    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
+    builder.button(text='В меню', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
     builder.adjust(2, 1, 1, 1)
     return builder.as_markup()
 
@@ -85,7 +85,7 @@ def get_keyboard_change_day(list_events):
         )
         builder.button(text=list_events[i].title, callback_data=NumbersCallbackFactory(action='None'))
         if list_events[i].is_important:
-            builder.button(text=f'{filled_star}', callback_data=NumbersCallbackFactory(action='not_important', value=i))
+            builder.button(text=f'{filled_star}', callback_data=NumbersCallbackFactory(action='important', value=i))
         else:
             builder.button(text=f'{empty_star}', callback_data=NumbersCallbackFactory(action='important', value=i))    
     builder.button(text='Добавить', callback_data=NumbersCallbackFactory(action='add'))

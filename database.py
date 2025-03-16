@@ -132,7 +132,9 @@ class Database:
                 (user_id, date, start_time, end_time, title, int(is_important)),
             )
             await self.connection.commit()
+            event_id = cursor.lastrowid 
             logger.info(f"Событие '{title}' добавлено для пользователя {user_id}")
+            return event_id
 
     async def get_schedule_events(self, user_id: int, date: str = None):
         """Получает все события пользователя. Если указана дата, возвращает события за эту дату."""
@@ -158,3 +160,11 @@ class Database:
             )
             await self.connection.commit()
             logger.info(f"Событие с ID {event_id} удалено")
+    
+    async def update_event_important(self, event_id: int, is_important: bool):
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "UPDATE schedule_events SET is_important = ? WHERE event_id = ?",
+                (int(is_important), event_id),
+            )
+            await self.connection.commit()

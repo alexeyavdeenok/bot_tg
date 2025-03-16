@@ -1,6 +1,5 @@
 from datetime import date, timedelta, datetime
 import asyncio
-
 days_of_week = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
 
 
@@ -12,16 +11,16 @@ class Schedule:
         self.current_day = self.get_current_day()
         self.week_to_show = self.current_week
         self.day_to_show = self.current_day
-        asyncio.create_task(self.load_events())  # Загрузка событий в фоновом режиме
+        #asyncio.create_task(self.load_events())  # Загрузка событий в фоновом режиме
 
     async def load_events(self):
         """Загружает события из базы и распределяет их по дням."""
         events = await self.db.get_schedule_events(self.user_id)
         for event in events:
-            date_str = event['date']
+            date_str = event[1]
             day = self.find_day_by_date(date_str)
             if day:
-                day.add_event(event['start_time'], event['end_time'], event['title'], event['is_important'])
+                day.add_event(event[2], event[3], event[4], event[5], event[0])
 
     def find_day_by_date(self, date_str):
         """Находит день в неделях по дате."""
@@ -100,8 +99,8 @@ class Schedule:
     def delete_event(self, index):
         self.day_to_show.delete_event(index)
     
-    def add_event(self, start_time, end_time, title, is_important=False):
-        self.day_to_show.add_event(start_time, end_time, title, is_important)
+    def add_event(self, start_time, end_time, title, is_important=True, event_id=None):
+        self.day_to_show.add_event(start_time, end_time, title, is_important, event_id)
 
     def change_important(self, index):
         self.day_to_show.list_events[index].change_important()
@@ -115,8 +114,20 @@ class Schedule:
     def return_to_current_week(self):
         self.week_to_show = self.current_week
 
-    from datetime import date, timedelta
-
+    @staticmethod
+    def validate_event_time(start_time, end_time):
+        """Проверяет, что время начала раньше времени конца."""
+        start_hours, start_minutes = map(int, start_time.split(':'))
+        end_hours, end_minutes = map(int, end_time.split(':'))
+        
+        start_total = start_hours * 60 + start_minutes
+        end_total = end_hours * 60 + end_minutes
+        
+        if start_total >= end_total:
+            raise ValueError("Время начала должно быть раньше времени окончания.")
+        
+        return True
+    
 def update(self):
     # Получаем текущую дату
     today = date.today()
@@ -167,7 +178,7 @@ class Week:
         return week
     
     def __str__(self):
-        return '\n'.join(str(i) for i in self.list_days)
+        return '\n'.join(i.str_for_weeks() for i in self.list_days)
         
 class Day:
     def __init__(self, date_str, list_events=None, is_current=False):
@@ -180,21 +191,26 @@ class Day:
     def change_current(self):
         self.is_current = not self.is_current
 
-    def add_event(self, start_time, end_time, title, is_important=False):
-        self.list_events.append(Event(start_time, end_time, title, is_important))
+    def add_event(self, start_time, end_time, title, is_important=True, event_id=None):
+        self.list_events.append(Event(start_time, end_time, title, is_important, event_id))
     
     def delete_event(self, index):
         self.list_events.pop(index)
+
+    def str_for_weeks(self):
+        return f'{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}\n' f'{'_'*35}\n'+'\n'.join(str(i) for i in self.list_events if i.is_important) + f'\n{'=' * 30}'
+    
     
     def __str__(self):
         return f'{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}\n' f'{'_'*35}\n'+'\n'.join(str(i) for i in self.list_events) + f'\n{'=' * 30}'
 
 class Event:
-    def __init__(self, start, end, title, is_important=False):
+    def __init__(self, start, end, title, is_important=True, event_id=None):
         self.set_start(start)
         self.set_end(end)
         self.title = title
         self.is_important = is_important
+        self.event_id = event_id
     
     def __str__(self):
         return f"{self.start} - {self.end} | {self.title}"
