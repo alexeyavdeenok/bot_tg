@@ -113,6 +113,11 @@ class Schedule:
     
     def return_to_current_week(self):
         self.week_to_show = self.current_week
+    
+    @staticmethod
+    def sort_by_time(event_elem):
+        start_hours, start_minutes = map(int, event_elem.start.split(':'))
+        return start_hours * 60 + start_minutes
 
     @staticmethod
     def validate_event_time(start_time, end_time):
@@ -128,42 +133,44 @@ class Schedule:
         
         return True
     
-def update(self):
-    # Получаем текущую дату
-    today = date.today()
-    # Вычисляем дату начала текущей недели (понедельник)
-    current_first_day = today - timedelta(days=today.weekday())
+    def update(self):
+        # Получаем текущую дату
+        today = date.today()
+        # Вычисляем дату начала текущей недели (понедельник)
+        current_first_day = today - timedelta(days=today.weekday())
 
-    # Проверяем, изменилась ли текущая неделя
-    if current_first_day == self.current_week.first_day:
-        # Неделя не изменилась, обновляем только текущий день
-        self.current_day.is_current = False  # Снимаем метку с предыдущего дня
-        self.current_day = self.current_week.list_days[today.weekday()]
-        self.current_day.is_current = True
-    else:
-        # Неделя изменилась, пересоздаем список недель
-        # Формируем даты начала для 5 недель: -2, -1, 0, +1, +2 относительно текущей
-        first_days = [current_first_day + timedelta(days=7 * i) for i in range(-2, 3)]
-        new_weeks = [Week(fd) for fd in first_days]
+        # Проверяем, изменилась ли текущая неделя
+        if current_first_day == self.current_week.first_day:
+            # Неделя не изменилась, обновляем только текущий день
+            self.current_day.is_current = False  # Снимаем метку с предыдущего дня
+            self.current_day = self.current_week.list_days[today.weekday()]
+            self.current_day.is_current = True
+        else:
+            # Неделя изменилась, пересоздаем список недель
+            # Формируем даты начала для 5 недель: -2, -1, 0, +1, +2 относительно текущей
+            first_days = [current_first_day + timedelta(days=7 * i) for i in range(-2, 3)]
+            new_weeks = [Week(fd) for fd in first_days]
 
-        # Сохраняем события из старых дней
-        old_days = {day.date_: day.list_events for week in self.weeks for day in week.list_days}
+            # Сохраняем события из старых дней
+            old_days = {day.date_: day.list_events for week in self.weeks for day in week.list_days}
 
-        # Копируем события в новые дни, если даты совпадают
-        for week in new_weeks:
-            for day in week.list_days:
-                if day.date_ in old_days:
-                    day.list_events = old_days[day.date_]
+            # Копируем события в новые дни, если даты совпадают
+            for week in new_weeks:
+                for day in week.list_days:
+                    if day.date_ in old_days:
+                        day.list_events = old_days[day.date_]
 
-        # Обновляем атрибуты
-        self.weeks = new_weeks
-        self.current_week = self.weeks[2]  # Текущая неделя — третья в списке
-        self.current_day = self.current_week.list_days[today.weekday()]
-        self.current_day.is_current = True
+            # Обновляем атрибуты
+            self.weeks = new_weeks
+            self.current_week = self.weeks[2]  # Текущая неделя — третья в списке
+            self.current_day = self.current_week.list_days[today.weekday()]
+            self.current_day.is_current = True
 
-    # Обновляем отображаемые значения
-    self.week_to_show = self.current_week
-    self.day_to_show = self.current_day
+        # Обновляем отображаемые значения
+        self.week_to_show = self.current_week
+        self.day_to_show = self.current_day
+
+
 class Week:
     def __init__(self, first_day):
         self.first_day = first_day
@@ -180,6 +187,7 @@ class Week:
     def __str__(self):
         return '\n'.join(i.str_for_weeks() for i in self.list_days)
         
+
 class Day:
     def __init__(self, date_str, list_events=None, is_current=False):
         self.is_current = is_current
@@ -193,16 +201,19 @@ class Day:
 
     def add_event(self, start_time, end_time, title, is_important=True, event_id=None):
         self.list_events.append(Event(start_time, end_time, title, is_important, event_id))
+        self.list_events.sort(key=Schedule.sort_by_time)
     
     def delete_event(self, index):
         self.list_events.pop(index)
+        self.list_events.sort(key=Schedule.sort_by_time)
 
     def str_for_weeks(self):
-        return f'{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}\n' f'{'_'*35}\n'+'\n'.join(str(i) for i in self.list_events if i.is_important) + f'\n{'=' * 30}'
+        return f'<b>{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}</b>\n'+'\n'.join(str(i) for i in self.list_events if i.is_important) + f'\n{'=' * 30}'
     
     
     def __str__(self):
         return f'{days_of_week[self.date_.weekday()]} {self.date_.strftime("%d.%m.%Y")}\n' f'{'_'*35}\n'+'\n'.join(str(i) for i in self.list_events) + f'\n{'=' * 30}'
+
 
 class Event:
     def __init__(self, start, end, title, is_important=True, event_id=None):
@@ -250,3 +261,4 @@ class Event:
             self.is_important = False
         else:
             self.is_important = True
+        

@@ -26,7 +26,7 @@ def get_keyboard_week():
         text="Выбрать день", callback_data=NumbersCallbackFactory(action="choose_day")
     )
     builder.button(
-        text="Назад", callback_data=NumbersCallbackFactory(action="cancel"))
+        text="В меню", callback_data=NumbersCallbackFactory(action="cancel_to_menu"))
     builder.adjust(2, 1, 1, 1)
     return builder.as_markup()
 
@@ -42,7 +42,7 @@ def get_keyboard_week_last():
         text="Выбрать день", callback_data=NumbersCallbackFactory(action="choose_day")
     )
     builder.button(
-        text="Назад", callback_data=NumbersCallbackFactory(action="cancel"))
+        text="В меню", callback_data=NumbersCallbackFactory(action="cancel_to_menu"))
     builder.adjust(1, 1, 1, 1)
     return builder.as_markup()
 
@@ -58,7 +58,7 @@ def get_keyboard_week_first():
         text="Выбрать день", callback_data=NumbersCallbackFactory(action="choose_day")
     )
     builder.button(
-        text="В меню", callback_data=NumbersCallbackFactory(action="cancel"))
+        text="В меню", callback_data=NumbersCallbackFactory(action="cancel_to_menu"))
     builder.adjust(1, 1, 1, 1)
     return builder.as_markup()
 
@@ -105,4 +105,13 @@ def get_keyboard_choose_day(list_days):
 def get_user_event():
     builder = InlineKeyboardBuilder()
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='back_to_change'))
+    return builder.as_markup()
+
+def get_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='to_schedule'))
+    builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='TODO_list'))
+    builder.button(text='Информация', callback_data=NumbersCallbackFactory(action='info'))
+    builder.button(text='Настройки', callback_data=NumbersCallbackFactory(action='settings'))
+    builder.adjust(1)
     return builder.as_markup()

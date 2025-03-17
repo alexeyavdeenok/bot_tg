@@ -124,7 +124,7 @@ class Database:
             )
             return await cursor.fetchall()
     
-    async def add_schedule_event(self, user_id: int, date: str, start_time: str, end_time: str, title: str, is_important: bool = False):
+    async def add_schedule_event(self, user_id: int, date: str, start_time: str, end_time: str, title: str, is_important: bool = True):
         """Добавляет новое событие в расписание."""
         async with self.connection.cursor() as cursor:
             await cursor.execute(

@@ -18,7 +18,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
-dp = Dispatcher(storage=storage)
+dp = Dispatcher(storage=storage, parse_mode="HTML")
 user_schedules = {}
 
 class AddEventStates(StatesGroup):
@@ -54,9 +54,9 @@ async def handle_event_details(message: types.Message, state: FSMContext):
             await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))
         except Exception as e:
             logger.error(f"Ошибка при добавлении события: {e}", exc_info=True)
-            await message.answer("Невозможно добавить событие. Проверьте время и название.", reply_markup=get_user_event())
+            await message.answer("Невозможно добавить событие. Проверьте время и название.\nВремя начала должно быть раньше времени конца. Нажмите назад и поробуйте снова.", reply_markup=get_user_event())
     else:
-        await message.answer("Неверный формат. Пожалуйста, введите событие в формате: 00:00 - 00:01 название", reply_markup=get_user_event())
+        await message.answer("Неверный формат. Ожидаемый формат ввода: 00:00 - 00:01 название\nНажмите назад и поробуйте снова.", reply_markup=get_user_event())
         await state.clear()
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'back_to_change'))
@@ -105,7 +105,10 @@ async def cmd_schedule(message: types.Message):
         # Если есть, используем существующее расписание
         schedule = user_schedules[user_id]
 
-    await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+    if message:
+        await message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+    else:
+        await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'today'))
 async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -133,12 +136,12 @@ async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCal
 async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     schedule = user_schedules[callback.from_user.id]
     schedule.return_to_current_day()
-    await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week())
+    await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week(), parse_mode='HTML')
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'choose_day'))
 async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     schedule = user_schedules[callback.from_user.id]
-    await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_choose_day(schedule.week_to_show.list_days))
+    await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_choose_day(schedule.week_to_show.list_days), parse_mode='HTML')
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'back_week'))
 async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -149,11 +152,11 @@ async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCal
     else:
         schedule.next_week()
     if schedule.weeks.index(schedule.week_to_show) == 0:
-        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week_first())
+        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week_first(), parse_mode='HTML')
     elif schedule.weeks.index(schedule.week_to_show) == len(schedule.weeks) - 1:
-        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week_last())
+        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week_last(), parse_mode='HTML')
     else:
-        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week())
+        await callback.message.edit_text(f'{str(schedule.week_to_show)}', reply_markup=get_keyboard_week(), parse_mode='HTML')
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'choose'))
 async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -188,6 +191,10 @@ async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCal
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'to_schedule'))
 async def show_schedule(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     await cmd_schedule(callback.message)
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_menu'))
+async def show_menu(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text('Меню', reply_markup=get_menu())
     
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
 async def echo_1(message: types.Message):
