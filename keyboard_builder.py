@@ -5,6 +5,7 @@ from aiogram.filters.callback_data import CallbackData
 
 empty_star = "☆"   
 filled_star = "★"  
+priority_dict = {1: '🟨', 2: '🟧', 3: '🟥'}
 
 class NumbersCallbackFactory(CallbackData, prefix="fabnum"):
     action: str

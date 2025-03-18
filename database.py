@@ -106,23 +106,56 @@ class Database:
             )
             return await cursor.fetchone()
 
-    async def add_task(self, user_id: int, task: str, deadline: str):
-        """Добавляет задачу в TODO-лист."""
+    async def add_task(self, user_id: int, task: str, deadline: str, priority: int = 1):
+        """Добавляет задачу в TODO-лист и возвращает сгенерированный ID задачи."""
         async with self.connection.cursor() as cursor:
             await cursor.execute(
-                "INSERT INTO todo_list (user_id, task, deadline) VALUES (?, ?, ?)",
-                (user_id, task, deadline),
+                "INSERT INTO todo_list (user_id, task, deadline, priority) VALUES (?, ?, ?, ?)",
+                (user_id, task, deadline, priority),
             )
             await self.connection.commit()
+            task_id = cursor.lastrowid  # Получаем сгенерированный ID
+            logger.info(f"Задача '{task}' добавлена для пользователя {user_id} с ID {task_id} и приоритетом {priority}")
+            return task_id
 
     async def get_tasks(self, user_id: int):
-        """Получает список задач для пользователя."""
+        """Получает список задач для пользователя с их приоритетами."""
         async with self.connection.cursor() as cursor:
             await cursor.execute(
-                "SELECT * FROM todo_list WHERE user_id = ?",
+                "SELECT id, user_id, task, deadline, priority, is_completed FROM todo_list WHERE user_id = ?",
                 (user_id,),
             )
             return await cursor.fetchall()
+    
+    async def update_task_priority(self, task_id: int, new_priority: int):
+        """Обновляет приоритет задачи."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "UPDATE todo_list SET priority = ? WHERE id = ?",
+                (new_priority, task_id),
+            )
+            await self.connection.commit()
+            logger.info(f"Приоритет задачи с ID {task_id} обновлен на {new_priority}")
+
+    async def update_task_deadline(self, task_id: int, new_deadline: str):
+        """Обновляет дедлайн задачи."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "UPDATE todo_list SET deadline = ? WHERE id = ?",
+                (new_deadline, task_id),
+            )
+            await self.connection.commit()
+            logger.info(f"Дедлайн задачи с ID {task_id} обновлен на {new_deadline}")
+
+    async def delete_task(self, task_id: int):
+        """Удаляет задачу по её ID."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "DELETE FROM todo_list WHERE id = ?",
+                (task_id,),
+            )
+            await self.connection.commit()
+            logger.info(f"Задача с ID {task_id} удалена")
     
     async def add_schedule_event(self, user_id: int, date: str, start_time: str, end_time: str, title: str, is_important: bool = True):
         """Добавляет новое событие в расписание."""

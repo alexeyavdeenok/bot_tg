@@ -105,10 +105,8 @@ async def cmd_schedule(message: types.Message):
         # Если есть, используем существующее расписание
         schedule = user_schedules[user_id]
 
-    if message:
-        await message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
-    else:
-        await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+    
+    await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'today'))
 async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -190,7 +188,19 @@ async def callback_days(callback: types.CallbackQuery, callback_data: NumbersCal
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'to_schedule'))
 async def show_schedule(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
-    await cmd_schedule(callback.message)
+    logger.info(f"Пользователь {callback.message.from_user.id} запустил команду /schedule")
+    user_id = callback.from_user.id
+    
+    # Проверяем, есть ли расписание пользователя в словаре
+    if user_id not in user_schedules:
+        # Если нет, создаем новое расписание и загружаем его из базы данных
+        schedule = Schedule(user_id, db)
+        await schedule.load_events()
+        user_schedules[user_id] = schedule
+    else:
+        # Если есть, используем существующее расписание
+        schedule = user_schedules[user_id]
+    await callback.message.edit_text(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_menu'))
 async def show_menu(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
