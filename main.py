@@ -12,6 +12,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 import re
+from todolist import *
 
 # Инициализация бота
 load_dotenv()
@@ -20,6 +21,8 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage, parse_mode="HTML")
 user_schedules = {}
+user_todolist = {}
+show_completed = False
 
 class AddEventStates(StatesGroup):
     waiting_for_event_details = State()
@@ -85,8 +88,8 @@ async def cmd_start(message: types.Message):
 async def cmd_help(message: types.Message):
     logger.info(f"Пользователь {message.from_user.id} запустил команду /help")
     await message.answer('Список команд:\n/start - запуск бота,\n/help- список команд'
-                         '\n/schedule - расписание (пока не работает)'
-                         '\n/todo - TODO лист (пока не работает)'
+                         '\n/schedule - расписание'
+                         '\n/todo - TODO лист'
                          '\n/game - играть (пока не работает)'
                          '\n/notifications - уведомления (пока не работает)')
 
@@ -107,6 +110,23 @@ async def cmd_schedule(message: types.Message):
 
     
     await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_day())
+
+@dp.message(Command('todo'))
+async def cmd_todo(message: types.Message):
+    logger.info(f"Пользователь {message.from_user.id} запустил команду /todo")
+    user_id = message.from_user.id
+    
+    # Проверяем, есть ли расписание пользователя в словаре
+    if user_id not in user_todolist:
+        # Если нет, создаем новое расписание и загружаем его из базы данных
+        todolist = Todolist('TODO лист', db, show_completed)
+        await todolist.load_tasks(user_id)
+        user_todolist[user_id] = todolist
+    else:
+        # Если есть, используем существующее расписание
+        todolist = user_todolist[user_id]
+    
+    await message.answer(f'{str(todolist)}', reply_markup=get_todolist_keyboard())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'today'))
 async def callback_numbers(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -205,7 +225,129 @@ async def show_schedule(callback: types.CallbackQuery, callback_data: NumbersCal
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_menu'))
 async def show_menu(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     await callback.message.edit_text('Меню', reply_markup=get_menu())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'TODO_list'))
+async def show_todo_list(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    if callback.from_user.id not in user_todolist:
+        user_todolist[callback.from_user.id] = Todolist('TODO лист', db, show_completed)
+        todolist1 = user_todolist[callback.from_user.id]
+    else:
+        todolist1 = user_todolist[callback.from_user.id]
+        await todolist1.load_tasks(callback.from_user.id)
+    await callback.message.edit_text(str(todolist1), reply_markup=get_todolist_keyboard())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_todolist'))
+async def show_todo_list(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(str(user_todolist[callback.from_user.id]), reply_markup=get_todolist_keyboard())
+
+# Определяем состояния для добавления задачи (одно состояние, как в расписании)
+class AddTaskStates(StatesGroup):
+    waiting_for_task_details = State()
+
+# Хендлер для начала добавления задачи в TODO-лист
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'add_task'))
+async def start_adding_task(callback: types.CallbackQuery, state: FSMContext):
+    message_to_delete = await callback.message.edit_text(
+        "Введите задачу в формате: дд.мм название или дд.мм.гггг название",
+        reply_markup=get_cancel_keyboard()  # Используем клавиатуру TODO-листа
+    )
+    await state.update_data(message_to_delete=message_to_delete)
+    await state.set_state(AddTaskStates.waiting_for_task_details)
+
+# Хендлер для обработки ввода задачи в TODO-лист
+@dp.message(AddTaskStates.waiting_for_task_details)
+async def handle_task_details(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    message_to_delete = data.get('message_to_delete')
+    if message_to_delete is not None:
+        await message_to_delete.delete()
+
+    task_input = message.text.strip()
+    pattern = r"(\d{1,2}\.\d{1,2}(?:\.\d{4})?)\s+(.+)"  # Формат дд.мм или дд.мм.гггг
+    match = re.match(pattern, task_input)
     
+    if match:
+        deadline, task_text = match.groups()
+        await message.delete()  # Удаляем сообщение пользователя
+        
+        # Используем дедлайн как есть, без форматирования
+        try:
+            user_id = message.from_user.id
+            
+            # Проверяем и инициализируем TODO-лист
+            if user_id not in user_todolist:
+                user_todolist[user_id] = Todolist('TODO лист', db, show_completed)
+            todolist = user_todolist[user_id]
+            
+            # Добавляем задачу с приоритетом по умолчанию (можно настроить позже)
+            await todolist.add_task(task_text, deadline, priority=2, user_id=user_id)
+            
+            await message.answer(
+                'Выберите приоритет задачи',
+                reply_markup=get_priority_keyboard()
+            )
+            await state.clear()
+        except ValueError as e:
+            logger.error(f"Ошибка при добавлении задачи: {e}", exc_info=True)
+            await message.answer(
+                "Неверная дата. Проверьте формат: дд.мм или дд.мм.гггг.",
+                reply_markup=get_cancel_keyboard()
+            )
+            await state.clear()
+    else:
+        await message.answer(
+            "Неверный формат. Ожидаемый формат ввода: дд.мм название или дд.мм.гггг название",
+            reply_markup=get_cancel_keyboard()
+        )
+        await state.clear()
+    
+# Определяем состояния для изменения дедлайна задачи
+class EditTaskDeadlineStates(StatesGroup):
+    waiting_for_new_deadline = State()
+
+# Хендлер для начала изменения дедлайна
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'edit_deadline'))
+async def start_editing_deadline(callback: types.CallbackQuery, state: FSMContext):
+    message_to_delete = await callback.message.edit_text(
+        "Введите новый дедлайн в формате: дд.мм или дд.мм.гггг",
+        reply_markup=get_todolist_keyboard()  # Используем клавиатуру TODO-листа
+    )
+    await state.update_data(message_to_delete=message_to_delete)
+    await state.set_state(EditTaskDeadlineStates.waiting_for_new_deadline)
+
+# Хендлер для обработки ввода нового дедлайна
+@dp.message(EditTaskDeadlineStates.waiting_for_new_deadline)
+async def handle_new_deadline(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    message_to_delete = data.get('message_to_delete')
+    if message_to_delete is not None:
+        await message_to_delete.delete()
+
+    new_deadline = message.text.strip()
+    pattern = r"(\d{1,2}\.\d{1,2}(?:\.\d{4})?)"  # Формат дд.мм или дд.мм.гггг
+    match = re.match(pattern, new_deadline)
+    
+    if match:
+        deadline = match.group(1)
+        await message.delete()  # Удаляем сообщение пользователя
+        
+        # Здесь вы можете продолжить обработку дедлайна
+        # Например, сохранить его или передать в другую функцию
+        # Я оставляю это вам для дальнейшей реализации
+        
+        await message.answer(
+            f"Новый дедлайн '{deadline}' получен. Что дальше?",
+            reply_markup=get_todolist_keyboard()  # Пример, замените на нужную клавиатуру
+        )
+        await state.clear()
+    else:
+        await message.answer(
+            "Неверный формат. Ожидаемый формат ввода: дд.мм или дд.мм.гггг",
+            reply_markup=get_todolist_keyboard()
+        )
+        await state.clear()
+
+
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
 async def echo_1(message: types.Message):
     await message.answer('СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ ИЗ ВАС🙏❤️БОЖЕ ХРАНИ Z🙏❤️СПАСИБО ВАМ НАШИ Z🙏🏼❤️🇷🇺 ХРОНИ Z✊🇷🇺💯Слава Богу Z🙏❤️СЛАВА Z🙏❤️СЛАВА Z🙏❤️АНГЕЛА ХРАНИТЕЛЯ Z КАЖДОМУ')

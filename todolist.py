@@ -1,16 +1,17 @@
-import database
+from database import *
 import asyncio
 from datetime import date, timedelta
 
 priority_dict = {1: '🟨', 2: '🟧', 3: '🟥'}
 
 class Todolist:
-    def __init__(self, title,database, show_completed=False):
+    def __init__(self, title,database, show_completed):
         self.title = title
         self.db = database
         self.tasks = []
         self.show_completed = show_completed
         self.completed_tasks = []
+        self.current_task = None
     
     async def load_tasks(self, user_id: int):
         """Загружает задачи из базы данных для указанного пользователя."""
@@ -31,9 +32,16 @@ class Todolist:
             self.tasks.append(task_obj)
         self.tasks.sort(key=lambda x: (x.deadline, -x.priority))
     
-    def add_task(self, deadline_date, title, priority):
+    async def add_task(self, title, deadline_date, priority, user_id=None):
         deadline, show_year = self.parse_date(deadline_date)
-        task = Task(title, deadline, priority, show_year)
+        if user_id is not None:
+            if show_year:
+                deadline_str = deadline.strftime("%d.%m.%Y")
+            else:
+                deadline_str = deadline.strftime("%d.%m")
+            task = Task(title, deadline, priority, show_year, task_id=await self.db.add_task(user_id, title, deadline_str, priority))
+        else:
+            task = Task(title, deadline, priority, show_year)
         self.tasks.append(task)
         self.tasks.sort(key=lambda x: (x.deadline, -x.priority))
     
@@ -41,6 +49,27 @@ class Todolist:
         self.tasks[index].complete()
         self.completed_tasks.append(self.tasks[index])
         self.tasks.pop(index)
+    
+    def __str__(self):
+        return f'{self.title}\n{'~' * 30}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.tasks])
+    
+    def get_deadline(self, task):
+        delta = task.deadline - date.today()
+        days_delta = delta.days
+        if days_delta == 0:
+            return "Сегодня"
+        elif days_delta == 1:
+            return "1 день"
+        elif 2 <= days_delta <= 4:
+            return f"{days_delta} дня"
+        elif days_delta < 0:
+            return f'{abs(days_delta)} дней назад'
+        else:
+            return f"{days_delta} дней"
+        
+    def set_current_task(self, index):
+        self.current_task = self.tasks[index]
+
     
 
     @staticmethod
@@ -73,6 +102,9 @@ class Task:
             return f'{priority_dict[self.priority]} {self.dedline.strftime("%d.%m.%Y")} {self.title} '
         return f'{priority_dict[self.priority]} {self.deadline.strftime("%d.%m")} {self.title} '
     
+    def set_task_id(self, task_id):
+        self.task_id = task_id
+    
     def complete(self):
         self.completed = True
 
@@ -80,7 +112,7 @@ class Task:
         self.priority = new_priority
     
     def change_deadline(self, new_deadline):
-        self.deadline = new_deadline
+        self.deadline, self.show_year = Todolist.parse_date(new_deadline)
     
     def get_date(self):
         if self.show_year:
