@@ -306,11 +306,11 @@ class EditTaskDeadlineStates(StatesGroup):
     waiting_for_new_deadline = State()
 
 # Хендлер для начала изменения дедлайна
-@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'edit_deadline'))
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'change_deadline'))
 async def start_editing_deadline(callback: types.CallbackQuery, state: FSMContext):
     message_to_delete = await callback.message.edit_text(
         "Введите новый дедлайн в формате: дд.мм или дд.мм.гггг",
-        reply_markup=get_todolist_keyboard()  # Используем клавиатуру TODO-листа
+        reply_markup=get_cancel_keyboard()  # Используем клавиатуру TODO-листа
     )
     await state.update_data(message_to_delete=message_to_delete)
     await state.set_state(EditTaskDeadlineStates.waiting_for_new_deadline)
@@ -331,22 +331,85 @@ async def handle_new_deadline(message: types.Message, state: FSMContext):
         deadline = match.group(1)
         await message.delete()  # Удаляем сообщение пользователя
         
-        # Здесь вы можете продолжить обработку дедлайна
-        # Например, сохранить его или передать в другую функцию
-        # Я оставляю это вам для дальнейшей реализации
+        todolist1 = user_todolist[message.from_user.id]
+        try:
+            todolist1.change_deadline(deadline)
+            await db.update_task_deadline(todolist1.current_task.task_id, deadline)
+        except ValueError as e:
+            logger.error(f"Ошибка при обновлении дедлайна: {e}", exc_info=True)
+            await message.answer(
+                "Неверная дата. Проверьте формат: дд.мм или дд.мм.гггг.",
+                reply_markup=get_cancel_keyboard()
+            )
+            await state.clear()
+            return
         
-        await message.answer(
-            f"Новый дедлайн '{deadline}' получен. Что дальше?",
-            reply_markup=get_todolist_keyboard()  # Пример, замените на нужную клавиатуру
-        )
+        text_to_output = f'Изменение задачи\n{'~' * 25}\n{str(todolist1.current_task)}'
+        await message.answer(text_to_output, reply_markup=change_task_keyboard(todolist1.current_task.priority))
         await state.clear()
     else:
         await message.answer(
             "Неверный формат. Ожидаемый формат ввода: дд.мм или дд.мм.гггг",
-            reply_markup=get_todolist_keyboard()
+            reply_markup=get_cancel_keyboard()
         )
         await state.clear()
+    
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'priority'))
+async def choose_priority_kboard(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    todolist1 = user_todolist[callback.from_user.id]
+    if value == 2:
+        await callback.message.edit_text(str(todolist1), reply_markup=get_todolist_keyboard())
+    else:
+        todolist1.current_task.change_priority(value)
+        await db.update_task_priority(todolist1.current_task.task_id, value)
+        await callback.message.edit_text(str(todolist1), reply_markup=get_todolist_keyboard())
+    
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'to_complete_task'))
+async def choose_completed_task(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    todolist1 = user_todolist[callback.from_user.id]
+    await callback.message.edit_text(str(todolist1), reply_markup=show_tasks_complete(todolist1.tasks))
+    
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'complete_task'))
+async def completed_task(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    todolist1 = user_todolist[callback.from_user.id]
+    value = callback_data.value
+    todolist1.set_current_task(value)
+    todolist1.complete_task(value)
+    await db.delete_task(todolist1.current_task.task_id)
+    await callback.message.edit_text(str(todolist1), reply_markup=show_tasks_complete(todolist1.tasks))
 
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'change_task'))
+async def change_task(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    todolist1 = user_todolist[callback.from_user.id]
+    await callback.message.edit_text(str(todolist1), reply_markup=show_tasks_keyboard(todolist1.tasks))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'show_task'))
+async def change_task(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    index = callback_data.value
+    todolist1 = user_todolist[callback.from_user.id]
+    todolist1.set_current_task(index)
+    text_to_output = f'Изменение задачи\n{'~' * 25}\n{str(todolist1.current_task)}'
+    await callback.message.edit_text(text_to_output, reply_markup=change_task_keyboard(todolist1.current_task.priority))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'priority_choose'))
+async def change_priority(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    priority = callback_data.value
+    todolist1 = user_todolist[callback.from_user.id]
+    if priority == todolist1.current_task.priority:
+        pass
+    else:
+        todolist1.current_task.change_priority(priority)
+        await db.update_task_priority(todolist1.current_task.task_id, priority)
+    text_to_output = f'Изменение задачи\n{'~' * 25}\n{str(todolist1.current_task)}'
+    await callback.message.edit_text(text_to_output, reply_markup=change_task_keyboard(todolist1.current_task.priority))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'delete_task'))
+async def delete_task(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    todolist1 = user_todolist[callback.from_user.id]
+    todolist1.delete_task()
+    await db.delete_task(todolist1.current_task.task_id)
+    await callback.message.edit_text(str(todolist1), reply_markup=show_tasks_keyboard(todolist1.tasks))
 
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
 async def echo_1(message: types.Message):
@@ -373,7 +436,7 @@ async def main():
     except Exception as e:
         logger.error(f"Ошибка: {e}", exc_info=True)
     finally:
-        user = await db.get_user(847687859)
+        #user = await db.get_user(847687859)
         await bot_shutdown(dp)
 
 if __name__ == '__main__':

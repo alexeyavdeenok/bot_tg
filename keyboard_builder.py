@@ -119,7 +119,7 @@ def get_menu():
 
 def get_todolist_keyboard():
     builder = InlineKeyboardBuilder()
-    builder.button(text='Выполнено', callback_data=NumbersCallbackFactory(action='complete_task'))
+    builder.button(text='Выполнено', callback_data=NumbersCallbackFactory(action='to_complete_task'))
     builder.button(text='Добавить', callback_data=NumbersCallbackFactory(action='add_task'))
     builder.button(text='Изменить задачу', callback_data=NumbersCallbackFactory(action='change_task'))
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
@@ -146,7 +146,7 @@ def change_task_keyboard(priority):
     builder.button(text=f'{priority_dict[3] + ("✅" if priority == 3 else "")}', callback_data=NumbersCallbackFactory(action='priority_choose', value=3))
     builder.button(text='Изменить дедлайн', callback_data=NumbersCallbackFactory(action='change_deadline'))
     builder.button(text='Удалить', callback_data=NumbersCallbackFactory(action='delete_task'))
-    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_todolist'))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='change_task'))
     builder.adjust(3, 1, 1, 1)
     return builder.as_markup()
     
@@ -154,6 +154,14 @@ def show_tasks_keyboard(tasks_list):
     builder = InlineKeyboardBuilder()
     for i in range(len(tasks_list)):
         builder.button(text=str(tasks_list[i]), callback_data=NumbersCallbackFactory(action='show_task', value=i))
-    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_todolist'))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_todolist'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def show_tasks_complete(tasks_list):
+    builder = InlineKeyboardBuilder()
+    for i in range(len(tasks_list)):
+        builder.button(text=str(tasks_list[i]), callback_data=NumbersCallbackFactory(action='complete_task', value=i))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_todolist'))
     builder.adjust(1)
     return builder.as_markup()

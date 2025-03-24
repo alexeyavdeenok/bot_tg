@@ -42,6 +42,7 @@ class Todolist:
             task = Task(title, deadline, priority, show_year, task_id=await self.db.add_task(user_id, title, deadline_str, priority))
         else:
             task = Task(title, deadline, priority, show_year)
+        self.current_task = task
         self.tasks.append(task)
         self.tasks.sort(key=lambda x: (x.deadline, -x.priority))
     
@@ -50,8 +51,11 @@ class Todolist:
         self.completed_tasks.append(self.tasks[index])
         self.tasks.pop(index)
     
+    def delete_task(self):
+        self.tasks.pop(self.tasks.index(self.current_task))
+    
     def __str__(self):
-        return f'{self.title}\n{'~' * 30}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.tasks])
+        return f'{self.title}\n{'~' * 25}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.tasks])
     
     def get_deadline(self, task):
         delta = task.deadline - date.today()
@@ -70,7 +74,12 @@ class Todolist:
     def set_current_task(self, index):
         self.current_task = self.tasks[index]
 
+    def set_current_task_by_id(self, task_id):
+        self.current_task = next((task for task in self.tasks if task.task_id == task_id), None)
     
+    def change_deadline(self, new_deadline):
+        self.current_task.change_deadline(new_deadline)
+        self.tasks.sort(key=lambda x: (x.deadline, -x.priority))
 
     @staticmethod
     def parse_date(date_str: str) -> tuple[date, bool]:
@@ -99,7 +108,7 @@ class Task:
 
     def __str__(self):
         if self.show_year:
-            return f'{priority_dict[self.priority]} {self.dedline.strftime("%d.%m.%Y")} {self.title} '
+            return f'{priority_dict[self.priority]} {self.deadline.strftime("%d.%m.%Y")} {self.title} '
         return f'{priority_dict[self.priority]} {self.deadline.strftime("%d.%m")} {self.title} '
     
     def set_task_id(self, task_id):
