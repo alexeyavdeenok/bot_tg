@@ -201,3 +201,28 @@ class Database:
                 (int(is_important), event_id),
             )
             await self.connection.commit()
+
+async def get_table_structure():
+    db_path = "bot.db"  # Укажите путь к вашей базе данных
+    async with aiosqlite.connect(db_path) as db:
+        # Проверяем существование таблицы
+        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='todo_list'")
+        table_exists = await cursor.fetchone()
+        if not table_exists:
+            print("Таблица todo_list не существует в базе данных.")
+            return
+
+        # Получаем структуру таблицы
+        cursor = await db.execute("PRAGMA table_info(todo_list);")
+        columns = await cursor.fetchall()
+
+        print("Структура таблицы todo_list:")
+        print("-" * 40)
+        print(f"{'Имя':<15}{'Тип':<15}{'PK':<5}")
+        print("-" * 40)
+        for column in columns:
+            cid, name, type, notnull, dflt_value, pk = column
+            print(f"{name:<15}{type:<15}{'Да' if pk else '':<5}")
+
+if __name__ == "__main__":
+    asyncio.run(get_table_structure())
