@@ -2,7 +2,7 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from logger import logger  # Импортируем наш логгер
-from database import *
+from database2 import *
 from keyboard_builder import *
 from aiogram import F
 from dotenv import load_dotenv
@@ -15,6 +15,8 @@ import re
 from todolist import *
 from schedule_bot import *
 from todolist_bot import *
+from init_database import init_db
+from middlewares import *
 
 # Инициализация бота
 load_dotenv()
@@ -26,8 +28,6 @@ dp = Dispatcher(storage=storage, parse_mode="HTML")
 user_schedules = {}
 user_todolist = {}
 show_completed = False
-dp.include_router(todolist_router)
-dp.include_router(schedule_router)
 
 @dp.message(Command('start'))
 async def cmd_start(message: types.Message):
@@ -68,23 +68,24 @@ async def show_menu(callback: types.CallbackQuery, callback_data: NumbersCallbac
 async def echo_1(message: types.Message):
     await message.answer(ZZ)
 
-
+'''
 @dp.message()
 async def echo(message: types.Message):
     logger.info(f"Сообщение от {message.from_user.id}: {message.text}")
     await message.answer(f'Вы написали: {message.text}')
-
+'''
 async def bot_shutdown(dp: Dispatcher):
     logger.warning("Завершение работы...")
     await db.disconnect()
     await bot.session.close()
 
 async def main():
-    global db
     try:
-        db = Database()
-        await db.connect()
+        await init_db()
         logger.info("Бот запущен")  # Используем везде наш логгер
+        dp.include_router(todolist_router)
+        dp.include_router(schedule_router)
+        setup_middlewares(dp)
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Ошибка: {e}", exc_info=True)

@@ -1,10 +1,18 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from schedule import *
-from main import *
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+import re
+from aiogram import F
 from keyboard_builder import *
+from aiogram.filters.callback_data import CallbackData
+from logger import logger
+from keyboard_builder import *
+from database2 import db
 
 schedule_router = Router()
+user_schedules = {}
 
 
 class AddEventStates(StatesGroup):

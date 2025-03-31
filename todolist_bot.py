@@ -1,10 +1,18 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from todolist import *
-from main import *
+from database2 import db
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.filters.callback_data import CallbackData
+from logger import logger
+from aiogram import F
+import re
 from keyboard_builder import *
 
 todolist_router = Router()
+user_todolist = {}
+show_completed = False
 
 @todolist_router.message(Command('todo'))
 async def cmd_todo(message: types.Message):
