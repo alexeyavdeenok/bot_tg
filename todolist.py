@@ -1,6 +1,7 @@
 from database import *
 import asyncio
 from datetime import date, timedelta
+from container import measure_execution_time
 
 priority_dict = {1: '🟨', 2: '🟧', 3: '🟥'}
 
@@ -13,6 +14,7 @@ class Todolist:
         self.completed_tasks = []
         self.current_task = None
     
+    @measure_execution_time
     async def load_tasks(self, user_id: int):
         """Загружает задачи из базы данных для указанного пользователя."""
         tasks_data = await self.db.get_tasks(user_id)

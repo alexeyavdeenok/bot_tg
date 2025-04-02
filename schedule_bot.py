@@ -10,9 +10,10 @@ from aiogram.filters.callback_data import CallbackData
 from logger import logger
 from keyboard_builder import *
 from database2 import db
+from container import cont
 
 schedule_router = Router()
-user_schedules = {}
+user_schedules = cont.get_schedule()
 
 
 class AddEventStates(StatesGroup):

@@ -9,10 +9,11 @@ from logger import logger
 from aiogram import F
 import re
 from keyboard_builder import *
+from container import cont
 
 todolist_router = Router()
-user_todolist = {}
-show_completed = False
+user_todolist = cont.get_todolist()
+show_completed = cont.get_show_complete()
 
 @todolist_router.message(Command('todo'))
 async def cmd_todo(message: types.Message):
@@ -34,8 +35,9 @@ async def cmd_todo(message: types.Message):
 @todolist_router.callback_query(NumbersCallbackFactory.filter(F.action == 'TODO_list'))
 async def show_todo_list(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     if callback.from_user.id not in user_todolist:
-        user_todolist[callback.from_user.id] = Todolist('TODO лист', db, show_completed)
-        todolist1 = user_todolist[callback.from_user.id]
+        todolist1 = Todolist('TODO лист', db, show_completed)
+        await todolist1.load_tasks(callback.from_user.id)
+        user_todolist[callback.from_user.id] = todolist1
     else:
         todolist1 = user_todolist[callback.from_user.id]
         await todolist1.load_tasks(callback.from_user.id)

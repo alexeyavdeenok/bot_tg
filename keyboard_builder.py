@@ -165,3 +165,21 @@ def show_tasks_complete(tasks_list):
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_todolist'))
     builder.adjust(1)
     return builder.as_markup()
+
+def get_settings_keyboard():
+    pass
+
+def info_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='info_command', value=1))
+    builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='info_command', value=2))
+    builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='info_command', value=3))
+    builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='info_comnand', value=4))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def info_keyboard_cancel():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_info'))
+    return builder.as_markup()

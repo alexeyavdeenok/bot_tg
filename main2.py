@@ -16,7 +16,6 @@ from todolist import *
 from schedule_bot import *
 from todolist_bot import *
 from init_database import init_db
-from middlewares import *
 
 # Инициализация бота
 load_dotenv()
@@ -25,9 +24,11 @@ ZZ = os.getenv('ZZ')
 bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage, parse_mode="HTML")
-user_schedules = {}
-user_todolist = {}
-show_completed = False
+
+info_dict = {1: 'Информация про расписание',
+             2: 'Информация про TODO лист',
+             3: 'Информация про напоминания', 
+             4: 'Информация про игры'}
 
 @dp.message(Command('start'))
 async def cmd_start(message: types.Message):
@@ -46,22 +47,37 @@ async def cmd_start(message: types.Message):
     logger.info(f"Пользователь {user_id} запустил бота и создал расписание")
     await message.answer('Привет! Я простой бот. Твое расписание создано.')
 
-
-
+@dp.message(Command('menu'))
+async def cmd_menu(message: types.Message):
+    logger.info(f"Пользователь {message.from_user.id} запустил команду /menu")
+    await message.answer(f'Меню\n{'_' * 30}', reply_markup=get_menu())
 
 @dp.message(Command('help'))
 async def cmd_help(message: types.Message):
     logger.info(f"Пользователь {message.from_user.id} запустил команду /help")
-    await message.answer('Список команд:\n/start - запуск бота,\n/help- список команд'
-                         '\n/schedule - расписание'
-                         '\n/todo - TODO лист'
-                         '\n/game - играть (пока не работает)'
-                         '\n/notifications - уведомления (пока не работает)')
+    await message.answer(text='Выберите команду для ознакомления с функциями бота', reply_markup=info_keyboard())
 
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'info'))
+async def show_info_k(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(text='Выберите команду для ознакомления с функциями бота', reply_markup=info_keyboard())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'info_command'))
+async def show_info(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    info_text = info_dict[value]
+    await callback.message.edit_text(text=info_text, reply_markup=info_keyboard_cancel())  
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_info'))
+async def to_info(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(text='Выберите команду для ознакомления с функциями бота', reply_markup=info_keyboard())
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_menu'))
 async def show_menu(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     await callback.message.edit_text('Меню', reply_markup=get_menu())
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'settings'))
+async def show_settings(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(f'Настройки\n {"_" * 30}', reply_markup=get_settings_keyboard())
 
 
 @dp.message((F.text.lower() == 'z') | (F.text.lower() == 'zov'))
@@ -85,7 +101,6 @@ async def main():
         logger.info("Бот запущен")  # Используем везде наш логгер
         dp.include_router(todolist_router)
         dp.include_router(schedule_router)
-        setup_middlewares(dp)
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Ошибка: {e}", exc_info=True)

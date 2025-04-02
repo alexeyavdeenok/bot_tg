@@ -1,5 +1,7 @@
 from datetime import date, timedelta, datetime
 import asyncio
+from container import measure_execution_time
+
 days_of_week = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
 
 
@@ -13,6 +15,7 @@ class Schedule:
         self.day_to_show = self.current_day
         #asyncio.create_task(self.load_events())  # Загрузка событий в фоновом режиме
 
+    @measure_execution_time
     async def load_events(self):
         """Загружает события из базы и распределяет их по дням."""
         events = await self.db.get_schedule_events(self.user_id)
