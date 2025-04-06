@@ -43,7 +43,7 @@ async def handle_event_details(message: types.Message, state: FSMContext):
         await state.clear()  # Очищаем состояние после получения данных
         schedule = user_schedules[message.from_user.id]
         try:
-            Schedule.validate_event_time(start_time, end_time)
+            Schedule.validate_event_time(start_time, end_time)  
             even_id = await db.add_schedule_event(message.from_user.id, schedule.day_to_show.date_, start_time, end_time, event_title)
             schedule.add_event(start_time, end_time, event_title, True, even_id)
             await message.answer(f'{str(schedule.day_to_show)}', reply_markup=get_keyboard_change_day(schedule.day_to_show.list_events))

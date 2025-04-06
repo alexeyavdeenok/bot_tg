@@ -167,7 +167,21 @@ def show_tasks_complete(tasks_list):
     return builder.as_markup()
 
 def get_settings_keyboard():
-    pass
+    builder = InlineKeyboardBuilder()
+    #builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='settings_command', value=1))
+    builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='settings_command', value=2))
+    #builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='settings_command', value=3))
+    #builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='settings_comnand', value=4))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def settings_todolist(show_complete):
+    builder = InlineKeyboardBuilder()
+    builder.button(text=(('✅' if show_complete else '❌') + 'Отображать выполненное'), callback_data=NumbersCallbackFactory(action='settings_todolist'))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
+    builder.adjust(1)
+    return builder.as_markup()
 
 def info_keyboard():
     builder = InlineKeyboardBuilder()

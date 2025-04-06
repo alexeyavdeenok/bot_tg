@@ -130,6 +130,8 @@ class Schedule:
         
         start_total = start_hours * 60 + start_minutes
         end_total = end_hours * 60 + end_minutes
+
+        event_test = Event(start_time, end_time, '')
         
         if start_total >= end_total:
             raise ValueError("Время начала должно быть раньше времени окончания.")

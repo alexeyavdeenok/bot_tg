@@ -52,12 +52,18 @@ class Todolist:
         self.tasks[index].complete()
         self.completed_tasks.append(self.tasks[index])
         self.tasks.pop(index)
+        if len(self.completed_tasks) > 5:
+            self.completed_tasks.pop(0)
     
     def delete_task(self):
         self.tasks.pop(self.tasks.index(self.current_task))
     
     def __str__(self):
-        return f'{self.title}\n{'~' * 25}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.tasks])
+        if not self.show_completed:
+            return f'{self.title}\n{'~' * 25}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.tasks])
+        else:
+            return f'{self.title}\n{'~' * 25}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.tasks]) \
+            + f'\n{'=' * 25}\nВыполнено\n{'~' * 25}\n' + '\n'.join([str(i) + '- ' +self.get_deadline(i) for i in self.completed_tasks])
     
     def get_deadline(self, task):
         delta = task.deadline - date.today()
