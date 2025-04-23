@@ -241,6 +241,27 @@ class Database:
                 (user_id,),
             )
             return await cursor.fetchall()
+        
+    async def get_all_users(self):
+        """Получает всех пользователей из таблицы users.
+
+        Returns:
+            list: Список кортежей, где каждый кортеж содержит данные пользователя (user_id, username).
+                Пустой список, если произошла ошибка или пользователей нет.
+        Raises:
+            ConnectionError: Если соединение с базой данных не установлено.
+        """
+        if self.connection is None:
+            raise ConnectionError("Соединение с базой данных не установлено.")
+        
+        async with self.connection.cursor() as cursor:
+            try:
+                await cursor.execute("SELECT user_id FROM users")
+                users = await cursor.fetchall()
+                return [i[0] for i in users]
+            except Exception as e:
+                logger.error(f"Ошибка при получении пользователей: {e}", exc_info=True)
+                return []
 
 async def get_table_structure():
     db_path = "bot.db"  # Укажите путь к вашей базе данных

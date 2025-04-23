@@ -12,19 +12,19 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 import re
+from job import *
+from reminder_bot import *
 from todolist import *
 from schedule_bot import *
 from todolist_bot import *
-from init_database import init_db
+from init_database import *
 from container import cont
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from database2 import db
 
-# Инициализация бота
-load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')
-ZZ = os.getenv('ZZ')
-bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage, parse_mode="HTML")
+
 
 info_dict = {1: 'Исполоьзуйте < > для отображение следующего(предыдущего) дня или недели\nдля добавления события необходимо выбрать день и приступить к его изменению'
                 '\nсобытия, обозначенные ★, отображаются в расписании недели, события, обозначенные ☆, отображаются только в расписании дня'
@@ -119,12 +119,38 @@ async def bot_shutdown(dp: Dispatcher):
     await db.disconnect()
     await bot.session.close()
 
+async def load_all_job_lists():
+    """Загружает JobList для всех пользователей и сохраняет их в контейнер."""
+    users = await db.get_all_users()  # Предполагаем, что есть метод для получения пользователей
+    for user in users:
+        user_id = user
+        job_list = JobList(user_id, db)  # Создаем объект JobList для пользователя
+        await job_list.load_reminders()  # Загружаем напоминания из базы данных
+        cont.user_remindes[user_id] = job_list  # Сохраняем JobList в контейнер
+
+def add_jobs_to_scheduler():
+    """Добавляет все задачи из JobList пользователей в шедулер."""
+    for user_id, job_list in cont.user_remindes.items():
+        for job in job_list.job_list:  # Предполагаем, что job_list — это список задач в JobList
+            scheduler.add_job(
+                send_reminder,
+                trigger=job.trigger,  # Триггер задачи (например, дата или интервал)
+                args=[user_id, job.job_name],  # Аргументы для функции напоминания
+                id=str(job.job_id),  # Уникальный ID задачи
+                replace_existing=True  # Заменяем задачу, если она уже существует
+            )
+            print(f"Задача {job.job_name} для пользователя {user_id} добавлена в шедулер")
+
 async def main():
     try:
         await init_db()
         logger.info("Бот запущен")  # Используем везде наш логгер
         dp.include_router(todolist_router)
         dp.include_router(schedule_router)
+        dp.include_router(reminder_router)
+        await load_all_job_lists()
+        add_jobs_to_scheduler()
+        scheduler.start()
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Ошибка: {e}", exc_info=True)

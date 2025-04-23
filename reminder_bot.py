@@ -13,6 +13,7 @@ from logger import logger
 from keyboard_builder import *
 from database2 import db
 from container import cont
+from init_database import *
 
 reminder_router = Router()
 
@@ -27,12 +28,12 @@ async def reminders_main(callback: types.CallbackQuery, callback_data: NumbersCa
     else:
         reminders = cont.get_remindes()[user_id]
 
-    await callback.message.edit_text(text=str(reminders), reply_markup=reminders_main())
+    await callback.message.edit_text(text=str(reminders), reply_markup=reminders_main_keyboard())
 
-@reminder_router.message(Command('reminders'))
-async def reminders_main(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
-    logger.info(f"Пользователь {callback.from_user.id} перешел к уведомлениям")
-    user_id = callback.from_user.id
+@reminder_router.message(Command('notifications'))
+async def reminders_main(message: types.Message):
+    logger.info(f"Пользователь {message.from_user.id} перешел к уведомлениям")
+    user_id = message.from_user.id
     if user_id not in cont.get_remindes():
         reminders = JobList(user_id, db)
         cont.get_remindes()[user_id] = reminders
@@ -40,7 +41,7 @@ async def reminders_main(callback: types.CallbackQuery, callback_data: NumbersCa
     else:
         reminders = cont.get_remindes()[user_id]
 
-    await callback.message.edit_text(text=str(reminders), reply_markup=reminders_main())
+    await message.answer(text=str(reminders), reply_markup=reminders_main_keyboard())
 
 class AddReminderStates(StatesGroup):
     waiting_for_reminder_input = State()
@@ -63,7 +64,7 @@ async def process_trigger_selection(
     # Формируем сообщение-подсказку для пользователя в зависимости от типа
     prompt_message = "Пожалуйста, введите информацию для напоминания:\n"
     if trigger_type_id == 1: # Простой интервал
-         prompt_message += "Формат: <число> <единица> (например: 5 минут, 1 час, 2 дня)"
+         prompt_message += "Формат: <число> <единица> (например: 5 минут, 1 час, 2 дня)\n после текста напоминания введите ; (субботник; 4 часа)"
     elif trigger_type_id == 2: # Сложный интервал (CRON)
          prompt_message += "Формат: CRON-выражение (например: * */1 * * *)"
     elif trigger_type_id == 3: # Точная дата
@@ -107,47 +108,28 @@ async def handle_reminder_input(message: types.Message, state: FSMContext):
     # Получаем введенную пользователем строку
     user_input_string = message.text.strip()
 
-    # Теперь у вас есть:
-    # - trigger_type (тип напоминания, который выбрал пользователь)
-    # - user_input_string (строка, которую ввел пользователь)
-
-    # Сохраняем введенную строку в контексте состояния, если нужно для следующего шага
-    # или для обработки после завершения FSM
     await state.update_data(reminder_input_string=user_input_string)
 
     # Удаляем сообщение пользователя для чистоты диалога
     await message.delete()
 
-    # --- Здесь должна быть логика парсинга и валидации user_input_string ---
-    # В зависимости от trigger_type, вы парсите user_input_string.
-    # Например:
-    # parsed_data = None
-    # is_valid = False
-    # if trigger_type == 1: # Простой интервал
-    #     try:
-    #         parsed_data = parse_simple_interval(user_input_string) # Ваша функция парсинга
-    #         is_valid = True
-    #     except ValueError:
-    #         is_valid = False # Неверный формат для простого интервала
-    # # ... аналогично для типов 2 и 3
-    #
-    # --- Обработка результата валидации ---
-    # if is_valid:
-    #     # Ввод корректен, можно создавать объект напоминания или переходить к следующему шагу
-    #     # ...
-    #     await message.answer(...)
-    #     await state.clear()
-    # else:
-    #     # Ввод некорректен
-    #     # ... (сообщить об ошибке формата)
-    #     await message.answer(...)
-    #     await state.clear() # Или оставить в состоянии, чтобы пользователь мог повторить
-    # --- Конец блока валидации и обработки ---
-
-
-    # В соответствии с вашим запросом, пока просто подтверждаем получение и очищаем состояние.
-    # Логика парсинга и создания объекта напоминания будет добавлена позже.
     await message.answer(f"Получен ввод для напоминания типа {trigger_type}: '{user_input_string}'.")
+    try:
+        name, trigger_time = user_input_string.split(';')
+        test_job = Job(name, trigger_type, trigger_time)
+        user_id = message.from_user.id
+        joblist = cont.get_remindes()[user_id]
+        await joblist.add_job(name, trigger_type, trigger_time)
+        scheduler.add_job(
+                send_reminder,
+                trigger=test_job.trigger,  # Триггер задачи (например, дата или интервал)
+                args=[user_id, test_job.job_name],  # Аргументы для функции напоминания
+                id=str(test_job.job_id),  # Уникальный ID задачи
+                replace_existing=True  # Заменяем задачу, если она уже существует
+            )
+        await message.answer(text=str(joblist), reply_markup=reminders_main_keyboard())
+    except Exception as e:
+        await message.answer(text=str(e), reply_markup=get_cancel_reminders())
 
     # Очищаем состояние после получения ввода
     await state.clear()
@@ -156,4 +138,61 @@ async def handle_reminder_input(message: types.Message, state: FSMContext):
 async def reminders_todolist(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     user_id = callback.from_user.id
     todolist = cont.get_todolist()[user_id]
-    await callback.message.edit_text(text=str(todolist), reply_markup=choose_keyboard_from_todolist())
+    await callback.message.edit_text(text='Выберите задачу для напоминания\n' + str(todolist), reply_markup=choose_keyboard_from_todolist(todolist.tasks))
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'add_reminder'))
+async def reminders_input(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(text='Добавьте напоминание вручную или выберите существующее событие', reply_markup=add_reminder_keyboard())
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'add_reminder_input'))
+async def reminders_input(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    await callback.message.edit_text(text='Выберите периодичность напоминаний', reply_markup=add_reminder_input_keyboard())
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'delete_reminder'))
+async def reminders_delete(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    user_id = callback.from_user.id
+    joblist = cont.get_remindes()[user_id]
+    await callback.message.edit_text(text='Нажмите на уведомление чтобы его удалить', reply_markup=change_reminders(joblist.job_list))
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'delete_rem'))
+async def reminders_delete(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    index = callback_data.value
+    user_id = callback.from_user.id
+    joblist = cont.get_remindes()[user_id]
+    job_id = await joblist.delete_job(index)
+    scheduler.remove_job(str(job_id))
+    await callback.message.edit_text(text='Нажмите на уведомление чтобы его удалить', reply_markup=change_reminders(joblist.job_list))
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_reminder_keyboard'))
+async def reminders_cancel(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    reminders = cont.get_remindes()[callback.from_user.id]
+    await callback.message.edit_text(text=str(reminders), reply_markup=reminders_main_keyboard())
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'add_reminder_todolist'))
+async def reminders_add_todolist(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    user_id = callback.from_user.id
+    index = callback_data.value
+    todolist = cont.get_todolist()[user_id]
+    task = todolist.tasks[index]
+    joblist = cont.get_remindes()[user_id]
+    await joblist.import_job_from_todolist(task)
+    await callback.message.edit_text(text=str(joblist), reply_markup=reminders_main_keyboard())
+
+def get_important_events_after_today(schedule):
+    today = date.today()  # Получаем текущую дату
+    important_events = []
+
+    # Проходим по всем неделям в Schedule
+    for week in schedule.weeks:
+        # Проходим по всем дням в текущей неделе
+        for day in week.list_days:
+            # Проверяем, что дата дня >= сегодняшней дате
+            if day.date_ >= today:
+                # Проходим по всем событиям в текущем дне
+                for event in day.list_events:
+                    # Если событие важное, добавляем его в список
+                    if event.is_important:
+                        important_events.append(
+                            f"{event.title}  {event.start} {day.date_.strftime('%Y-%m-%d')}"
+                        )
+    return important_events

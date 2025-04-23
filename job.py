@@ -5,13 +5,13 @@ from apscheduler.triggers.date import DateTrigger
 from logger import logger
 
 day_convert = {
-    "понедельник": 0,
-    "вторник": 1,
-    "среда": 2,
-    "четверг": 3,
-    "пятница": 4,
-    "суббота": 5,
-    "воскресенье": 6}
+    "понедельник": 0, "пн": 0,
+    "вторник": 1, "вт": 1,
+    "среда": 2, "ср": 2,
+    "четверг": 3, "чт": 3,
+    "пятница": 4, "пт": 4,
+    "суббота": 5, "сб": 5,
+    "воскресенье": 6, "вс": 6}
 
 class JobList:
     def __init__(self, user_id, db):
@@ -37,9 +37,10 @@ class JobList:
         self.job_list.append(job)
 
     async def delete_job(self, index):
+        j = self.job_list[index].job_id
         await self.db.delete_reminder(self.job_list[index].job_id)
         self.job_list.pop(index)
-        
+        return j
 
     def import_job_from_schedule(self, event, date_str):
         event_time = event.start
@@ -47,17 +48,21 @@ class JobList:
         event_for_job = event_time + " " + event_date
         job = Job(event.title, 3, event_for_job)
 
-    def import_job_from_todolist(self, task):
+    async def import_job_from_todolist(self, task):
         job = Job(task.title, 3, task.deadline.strftime("%d.%m.%Y"))
+        await self.add_job(task.title, 3, task.deadline.strftime("%d.%m.%Y"))
+
+    def __str__(self):
+        return f'Напоминания\n{'~' * 25}\n' + '\n'.join(str(i) for i in self.job_list)
         
 
 class Job:
     def __init__(self, job_name, trigger_type, trigger_time):
         self.job_name = job_name
-        self.set_trigger(trigger_type, trigger_time)
         self.job_id = None
         self.text_job = None
         self.str_trgger_time = None
+        self.set_trigger(trigger_type, trigger_time)
 
     def __str__(self):
         return f"{self.job_name} | {self.str_trgger_time}"
@@ -85,69 +90,143 @@ class Job:
         return day_convert[day_name_lower]
 
     def set_trigger(self, trigger_type, trigger_time):
-        if trigger_type == 2:  # CronTrigger
-            parts = trigger_time.strip().rsplit(' ', 1)
+        """Устанавливает триггер APScheduler на основе типа и времени."""
 
-            days_str, time_str = parts
+        # Валидация типа триггера в начале
+        try:
+            trigger_type = int(trigger_type)
+            if trigger_type not in [1, 2, 3]:
+                 raise ValueError("Неизвестный тип") # Внутреннее сообщение, будет перехвачено
+        except (ValueError, TypeError):
+             # Выбрасываем более дружественное сообщение для пользователя
+             raise ValueError(f"Неверный тип триггера: '{trigger_type}'. Ожидается число 1, 2 или 3.")
 
+
+        if trigger_type == 2:  # CronTrigger (дни недели/диапазон время ЧЧ:ММ)
             try:
-                datetime.strptime(time_str, "%H:%M")
-            except ValueError:
-                raise ValueError(f"Неверный формат времени: '{time_str}'")
+                # Пробуем разделить строку. Ожидаем 2 части: дни и время
+                parts = trigger_time.strip().rsplit(' ', 1)
+                if len(parts) != 2:
+                     raise ValueError(f"Неверный формат. Ожидается 'дни время', например 'понедельник 10:30'.")
 
-            hour, minute = map(int, time_str.split(':'))
-            
-            days = self._parse_days(days_str)
+                days_str, time_str = parts
 
-            self.str_trgger_time = f'{days_str} {time_str}'
+                # Парсинг времени
+                try:
+                    dt_time = datetime.strptime(time_str, "%H:%M")
+                    hour = dt_time.hour
+                    minute = dt_time.minute
+                except ValueError:
+                    raise ValueError(f"Неверный формат времени в Cron триггере: '{time_str}'. Ожидается ЧЧ:ММ.")
 
-            self.trigger = CronTrigger(
-                hour=hour,
-                minute=minute,
-                day_of_week=days
-            )
-        elif trigger_type == 1:  # IntervalTrigger
-            # Попытка разделить строку на количество и единицу измерения
+                # Парсинг дней недели. _parse_days выбрасывает ValueError при неверном названии дня
+                days = self._parse_days(days_str)
+
+                # Если парсинг успешен, устанавливаем атрибуты
+                self.trigger = CronTrigger(hour=hour, minute=minute, day_of_week=days)
+                self.str_trgger_time = f'{days_str} {time_str}' # Сохраняем строку, как ввел пользователь
+
+            except ValueError as e:
+                 # Логируем ошибку и перебрасываем исключение с более понятным сообщением
+                 logger.error(f"Ошибка создания Cron триггера из '{trigger_time}': {e}")
+                 # Перебрасываем исключение, сохраняя исходное сообщение ошибки парсинга
+                 raise ValueError(f"Ошибка парсинга Cron триггера: {e}")
+
+
+        elif trigger_type == 1:  # IntervalTrigger (число единица)
             try:
+                # Пробуем разделить строку на число и единицу
                 interval_str = trigger_time.strip()
                 parts = interval_str.split()
-                
+
                 if len(parts) != 2:
-                    raise ValueError("Неверный формат интервала. Ожидается: '15 часов' или '11 минут'")
-                
-                interval = int(parts[0])
-                unit = parts[1].lower()
-                
-                # Определение единицы измерения по первым трем буквам
-                if unit.startswith("ден") or unit.startswith("дн"):
-                    unit_type = "days"
-                elif unit.startswith("час"):
-                    unit_type = "hours"
-                elif unit.startswith("мин"):
-                    unit_type = "minutes"
-                else:
-                    raise ValueError(f"Неверная единица измерения: '{unit}'. Допустимые значения: 'дни', 'часы', 'минуты'")
-                
+                    raise ValueError("Неверный формат. Ожидается: '15 часов' или '11 минут'.")
+
+                # Парсинг числа интервала
+                try:
+                    interval = int(parts[0])
+                except ValueError:
+                     raise ValueError(f"Интервал должен быть числом. Получено: '{parts[0]}'.")
+
                 if interval <= 0:
-                    raise ValueError("Интервал должен быть положительным числом")
-                
-                self.str_trgger_time = f"{interval} {unit}"
-                
+                    raise ValueError("Интервал должен быть положительным числом.")
+
+                # Парсинг единицы измерения
+                unit = parts[1].lower()
+                unit_mapping = {
+                    "мин": "minutes", "час": "hours", "ден": "days", "дн": "days",
+                    "минута": "minutes", "минуты": "minutes", "минут": "minutes",
+                    "час": "hours", "часа": "hours", "часов": "hours",
+                    "день": "days", "дня": "days", "дней": "days",
+                }
+                unit_type = None
+                # Пробуем найти точное совпадение или по началу слова
+                if unit in unit_mapping:
+                    unit_type = unit_mapping[unit]
+                else:
+                     # Попробуем по первым символам, если точного совпадения нет
+                     for key, val in unit_mapping.items():
+                         if unit.startswith(key):
+                             unit_type = val
+                             break
+
+
+                if unit_type is None:
+                    raise ValueError(f"Неверная единица измерения: '{unit}'. Допустимые значения: 'минуты', 'часы', 'дни'.")
+
+                # Если парсинг успешен, устанавливаем атрибуты
                 self.trigger = IntervalTrigger(**{unit_type: interval})
+                self.str_trgger_time = interval_str # Сохраняем строку, как ввел пользователь
+
             except ValueError as e:
-                raise ValueError(f"Ошибка парсинга интервала: {str(e)}")
-        else:
+                 # Логируем ошибку и перебрасываем исключение с более понятным сообщением
+                 logger.error(f"Ошибка создания Interval триггера из '{trigger_time}': {e}")
+                 raise ValueError(f"Ошибка парсинга Interval триггера: {e}")
+
+
+        elif trigger_type == 3: # DateTrigger (точная дата и время ЧЧ:ММ ДД.ММ.ГГ или ЧЧ:ММ ДД.ММ.ГГГГ)
             try:
-                time_str, date_str = trigger_time.strip().split(' ')
-                
-                dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%y %H:%M")
-                
-                now = datetime.now()
+                # Пробуем разделить строку на время и дату. Ожидаем 2 части
+                parts = trigger_time.strip().split(' ')
+                if len(parts) != 2:
+                    trigger_time = '00:00 ' + trigger_time
+                    parts = trigger_time.strip().split(' ')
+
+                time_part, date_part = parts # Ожидаем формат "ЧЧ:ММ ДД.ММ.ГГ[ГГ]"
+
+                dt = None
+                last_exception = None
+
+                # 1. Пробуем формат с полным годом: ЧЧ:ММ ДД.ММ.ГГГГ
+                try:
+                     dt = datetime.strptime(f"{date_part} {time_part}", "%d.%m.%Y %H:%M")
+                except ValueError as e:
+                     last_exception = e # Сохраняем ошибку, если не удалось
+
+                # 2. Если полный год не подошел, пробуем формат с коротким годом: ЧЧ:ММ ДД.ММ.ГГ
+                if dt is None:
+                    try:
+                         dt = datetime.strptime(f"{date_part} {time_part}", "%d.%m.%y %H:%M")
+                    except ValueError as e:
+                         last_exception = e # Сохраняем последнюю ошибку
+
+                # Если после обеих попыток дата не распарсилась, выбрасываем ошибку
+                if dt is None:
+                     # Выбрасываем ошибку парсинга. Можно включить сообщение последней ошибки strptime
+                     raise ValueError(f"Неверный формат даты или времени. Ожидается ЧЧ:ММ ДД.ММ.ГГ или ЧЧ:ММ ДД.ММ.ГГГГ.")
+                         # Если нужно показать ошибку strptime: raise ValueError(f"Ошибка парсинга даты или времени: {last_exception}. Ожидается ЧЧ:ММ ДД.ММ.ГГ или ЧЧ:ММ ДД.ММ.ГГГГ.")
+
+
+                # Проверка, что дата в будущем (сравниваем без секунд/микросекунд)
+                now = datetime.now().replace(second=0, microsecond=0)
                 if dt < now:
-                    raise ValueError("Дата должна быть в будущем")
-                
-                self.str_trgger_time = dt
-                
+                    raise ValueError("Дата и время напоминания должны быть в будущем.")
+
+                # Если парсинг и проверка на будущее успешны, устанавливаем атрибуты
                 self.trigger = DateTrigger(run_date=dt)
+                self.str_trgger_time = dt.strftime("%d.%m.%y %H:%M") # Сохраняем объект datetime
+
             except ValueError as e:
-                raise ValueError(f"Ошибка парсинга даты/времени: {str(e)}. Формат: ДД.ММ.ГГ ЧЧ:ММ")
+                 # Логируем ошибку и перебрасываем исключение с более понятным сообщением
+                 logger.error(f"Ошибка создания Date триггера из '{trigger_time}': {e}")
+                 raise ValueError(f"Ошибка парсинга даты/времени: {e}") # Перебрасываем исключение, сохраняя исходное сообщение об ошибке (например, "Дата в прошлом")
