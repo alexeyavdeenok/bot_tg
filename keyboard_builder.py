@@ -112,6 +112,7 @@ def get_menu():
     builder = InlineKeyboardBuilder()
     builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='to_schedule'))
     builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='TODO_list'))
+    builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='reminders'))
     builder.button(text='Информация', callback_data=NumbersCallbackFactory(action='info'))
     builder.button(text='Настройки', callback_data=NumbersCallbackFactory(action='settings'))
     builder.adjust(1)
@@ -196,4 +197,60 @@ def info_keyboard():
 def info_keyboard_cancel():
     builder = InlineKeyboardBuilder()
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_info'))
+    return builder.as_markup()
+
+def reminders_main_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Добавить напоминание', callback_data=NumbersCallbackFactory(action='add_reminder'))
+    builder.button(text='Удалить напоминание', callback_data=NumbersCallbackFactory(action='delete_reminder'))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def change_reminers(reminders_list):
+    builder = InlineKeyboardBuilder()
+    for i in range(len(reminders_list)):
+        builder.button(text=str(reminders_list[i]), callback_data=NumbersCallbackFactory(action='delete_reminder', value=i))
+    builder.button(text='+', callback_data=NumbersCallbackFactory(action='add_reminder'))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminders'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def add_reminder_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Добавить напоминание', callback_data=NumbersCallbackFactory(action='add_reminder_input'))
+    builder.button(text='Добавить событие из расписания', callback_data=NumbersCallbackFactory(action='add__schedule'))
+    builder.button(text='Добавить событие из TODO листа', callback_data=NumbersCallbackFactory(action='add__todolist'))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminders'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def choose_keyboard_from_schedule(important_list):
+    builder = InlineKeyboardBuilder()
+    for i in range(len(important_list)):
+        builder.button(text=str(important_list[i]), callback_data=NumbersCallbackFactory(action='add_reminder_schedule', value=i))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminder_keyboard'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def choose_keyboard_from_todolist(list_tasks):
+    builder = InlineKeyboardBuilder()
+    for i in range(len(list_tasks)):
+        builder.button(text=str(list_tasks[i]), callback_data=NumbersCallbackFactory(action='add_reminder_todolist', value=i))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminder_keyboard'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def add_reminder_input_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Простой интервал', callback_data=NumbersCallbackFactory(action='choose_trigger', value=1))
+    builder.button(text='Сложный интервал', callback_data=NumbersCallbackFactory(action='choose_trigger', value=2))
+    builder.button(text='Точная дата', callback_data=NumbersCallbackFactory(action='choose_trigger', value=3))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminder_keyboard'))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_cancel_reminders():
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminder_keyboard'))
     return builder.as_markup()

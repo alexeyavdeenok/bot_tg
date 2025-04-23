@@ -6,7 +6,7 @@ from container import measure_execution_time
 priority_dict = {1: '🟨', 2: '🟧', 3: '🟥'}
 
 class Todolist:
-    def __init__(self, title,database, show_completed):
+    def __init__(self, title, database, show_completed):
         self.title = title
         self.db = database
         self.tasks = []

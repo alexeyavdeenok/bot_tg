@@ -84,7 +84,16 @@ class Database:
                     FOREIGN KEY(user_id) REFERENCES users(user_id)
                 )
             """)
-
+            await cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reminders (
+                job_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                job_name TEXT,
+                trigger_type INTEGER,
+                trigger_time TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(user_id)
+            )
+            """)
             await self.connection.commit()
 
     async def add_user(self, user_id: int, username: str):
@@ -201,6 +210,37 @@ class Database:
                 (int(is_important), event_id),
             )
             await self.connection.commit()
+    
+    async def add_reminder(self, user_id: int, job_name: str, trigger_type: int, trigger_time: str) -> int:
+        """Добавляет новое напоминание и возвращает сгенерированный job_id."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "INSERT INTO reminders (user_id, job_name, trigger_type, trigger_time) VALUES (?, ?, ?, ?)",
+                (user_id, job_name, trigger_type, trigger_time),
+            )
+            await self.connection.commit()
+            job_id = cursor.lastrowid
+            logger.info(f"Напоминание '{job_name}' добавлено для пользователя {user_id} с ID {job_id}")
+            return job_id
+        
+    async def delete_reminder(self, job_id: int):
+        """Удаляет напоминание по его job_id."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "DELETE FROM reminders WHERE job_id = ?",
+                (job_id,),
+            )
+            await self.connection.commit()
+            logger.info(f"Напоминание с ID {job_id} удалено")
+    
+    async def get_reminders_by_user(self, user_id: int):
+        """Получает все напоминания для пользователя."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "SELECT job_id, user_id, job_name, trigger_type, trigger_time FROM reminders WHERE user_id = ?",
+                (user_id,),
+            )
+            return await cursor.fetchall()
 
 async def get_table_structure():
     db_path = "bot.db"  # Укажите путь к вашей базе данных
@@ -223,6 +263,8 @@ async def get_table_structure():
         for column in columns:
             cid, name, type, notnull, dflt_value, pk = column
             print(f"{name:<15}{type:<15}{'Да' if pk else '':<5}")
+
+
         
 db = Database()
 

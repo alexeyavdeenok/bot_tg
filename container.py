@@ -3,6 +3,7 @@ class Container:
         self.user_schedules = {}
         self.user_todolist = {}
         self.show_complete = False
+        self.user_remindes = {}
 
     def get_schedule(self):
         return self.user_schedules
@@ -12,6 +13,9 @@ class Container:
     
     def get_show_complete(self):
         return self.show_complete
+    
+    def get_remindes(self):
+        return self.user_remindes
 
 cont = Container()
 
