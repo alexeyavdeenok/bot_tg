@@ -14,6 +14,7 @@ from keyboard_builder import *
 from database2 import db
 from container import cont
 from init_database import *
+from datetime import date
 
 reminder_router = Router()
 
@@ -64,11 +65,11 @@ async def process_trigger_selection(
     # Формируем сообщение-подсказку для пользователя в зависимости от типа
     prompt_message = "Пожалуйста, введите информацию для напоминания:\n"
     if trigger_type_id == 1: # Простой интервал
-         prompt_message += "Формат: <число> <единица> (например: 5 минут, 1 час, 2 дня)\n после текста напоминания введите ; (субботник; 4 часа)"
+         prompt_message += "Формат: <текст напоминания>; <число> <единица измерения> (например: 5 минут, 1 час, 2 дня)\n после текста напоминания введите ; (субботник; 4 часа)"
     elif trigger_type_id == 2: # Сложный интервал (CRON)
-         prompt_message += "Формат: CRON-выражение (например: * */1 * * *)"
+         prompt_message += "Формат: <текст напоминания>; <дни недели> <время> (дни недели могут быть перечислены через , или можно указать промежуток через - (например понедельник-среда == понедельник, вторник, среда))"
     elif trigger_type_id == 3: # Точная дата
-         prompt_message += "Формат: ДД.ММ.ГГГГ ЧЧ:ММ"
+         prompt_message += "Формат: <текст напоминания>; <время> <дата> (дата в формате день.месяц.год)"
     else:
          prompt_message += "Неизвестный тип напоминания. Введите данные." # Fallback
 
@@ -120,13 +121,6 @@ async def handle_reminder_input(message: types.Message, state: FSMContext):
         user_id = message.from_user.id
         joblist = cont.get_remindes()[user_id]
         await joblist.add_job(name, trigger_type, trigger_time)
-        scheduler.add_job(
-                send_reminder,
-                trigger=test_job.trigger,  # Триггер задачи (например, дата или интервал)
-                args=[user_id, test_job.job_name],  # Аргументы для функции напоминания
-                id=str(test_job.job_id),  # Уникальный ID задачи
-                replace_existing=True  # Заменяем задачу, если она уже существует
-            )
         await message.answer(text=str(joblist), reply_markup=reminders_main_keyboard())
     except Exception as e:
         await message.answer(text=str(e), reply_markup=get_cancel_reminders())
@@ -138,7 +132,8 @@ async def handle_reminder_input(message: types.Message, state: FSMContext):
 async def reminders_todolist(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     user_id = callback.from_user.id
     todolist = cont.get_todolist()[user_id]
-    await callback.message.edit_text(text='Выберите задачу для напоминания\n' + str(todolist), reply_markup=choose_keyboard_from_todolist(todolist.tasks))
+    todolist_to_show = [i for i in todolist.tasks if (i.deadline - date.today()).days > 0]
+    await callback.message.edit_text(text='Выберите задачу для напоминания\n' + str(todolist), reply_markup=choose_keyboard_from_todolist(todolist_to_show))
 
 @reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'add_reminder'))
 async def reminders_input(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
@@ -159,8 +154,7 @@ async def reminders_delete(callback: types.CallbackQuery, callback_data: Numbers
     index = callback_data.value
     user_id = callback.from_user.id
     joblist = cont.get_remindes()[user_id]
-    job_id = await joblist.delete_job(index)
-    scheduler.remove_job(str(job_id))
+    await joblist.delete_job(index)
     await callback.message.edit_text(text='Нажмите на уведомление чтобы его удалить', reply_markup=change_reminders(joblist.job_list))
 
 @reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'cancel_to_reminder_keyboard'))
@@ -173,7 +167,8 @@ async def reminders_add_todolist(callback: types.CallbackQuery, callback_data: N
     user_id = callback.from_user.id
     index = callback_data.value
     todolist = cont.get_todolist()[user_id]
-    task = todolist.tasks[index]
+    todolist_to_show = [i for i in todolist.tasks if (i.deadline - date.today()).days > 0]
+    task = todolist_to_show[index]
     joblist = cont.get_remindes()[user_id]
     await joblist.import_job_from_todolist(task)
     await callback.message.edit_text(text=str(joblist), reply_markup=reminders_main_keyboard())

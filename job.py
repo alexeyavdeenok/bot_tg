@@ -3,6 +3,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
 from logger import logger
+from init_database import *
 
 day_convert = {
     "понедельник": 0, "пн": 0,
@@ -35,18 +36,26 @@ class JobList:
         job = Job(job_name, trigger_type, trigger_time)
         job.job_id = await self.db.add_reminder(self.user_id, job.job_name, trigger_type, trigger_time)
         self.job_list.append(job)
+        scheduler.add_job(
+                send_reminder,
+                trigger=job.trigger,  # Триггер задачи (например, дата или интервал)
+                args=[self.user_id, job.job_name],  # Аргументы для функции напоминания
+                id=str(job.job_id),  # Уникальный ID задачи
+                replace_existing=True  # Заменяем задачу, если она уже существует
+            )
 
     async def delete_job(self, index):
         j = self.job_list[index].job_id
         await self.db.delete_reminder(self.job_list[index].job_id)
         self.job_list.pop(index)
-        return j
+        scheduler.remove_job(str(j))
 
-    def import_job_from_schedule(self, event, date_str):
+    async def import_job_from_schedule(self, event, date_str):
         event_time = event.start
         event_date = date_str.strftime("%d.%m.%Y")
         event_for_job = event_time + " " + event_date
         job = Job(event.title, 3, event_for_job)
+        await self.add_job(job.job_name, 3, event_for_job)
 
     async def import_job_from_todolist(self, task):
         job = Job(task.title, 3, task.deadline.strftime("%d.%m.%Y"))
@@ -124,7 +133,7 @@ class Job:
 
                 # Если парсинг успешен, устанавливаем атрибуты
                 self.trigger = CronTrigger(hour=hour, minute=minute, day_of_week=days)
-                self.str_trgger_time = f'{days_str} {time_str}' # Сохраняем строку, как ввел пользователь
+                self.str_trgger_time = f'{time_str} {days_str}' # Сохраняем строку, как ввел пользователь
 
             except ValueError as e:
                  # Логируем ошибку и перебрасываем исключение с более понятным сообщением

@@ -94,6 +94,13 @@ class Database:
                 FOREIGN KEY(user_id) REFERENCES users(user_id)
             )
             """)
+            await cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reminders_mode (
+                user_id INTEGER PRIMARY KEY,
+                is_enabled BOOLEAN DEFAULT 0,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            )
+            """)
             await self.connection.commit()
 
     async def add_user(self, user_id: int, username: str):
@@ -262,6 +269,26 @@ class Database:
             except Exception as e:
                 logger.error(f"Ошибка при получении пользователей: {e}", exc_info=True)
                 return []
+            
+    async def get_reminders_mode(self, user_id: int):
+        """Получает статус уведомлений для пользователя."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "SELECT is_enabled FROM reminders_mode WHERE user_id = ?",
+                (user_id,),
+            )
+            result = await cursor.fetchone()
+            return result[0] if result else False
+
+    async def update_reminders_mode(self, user_id: int, is_enabled: bool):
+        """Обновляет статус уведомлений для пользователя."""
+        async with self.connection.cursor() as cursor:
+            await cursor.execute(
+                "UPDATE reminders_mode SET is_enabled = ? WHERE user_id = ?",
+                (int(is_enabled), user_id),
+            )
+            await self.connection.commit()
+            logger.info(f"Статус уведомлений для пользователя {user_id} обновлён на {is_enabled}")
 
 async def get_table_structure():
     db_path = "bot.db"  # Укажите путь к вашей базе данных

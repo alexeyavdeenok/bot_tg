@@ -4,6 +4,7 @@ class Container:
         self.user_todolist = {}
         self.show_complete = False
         self.user_remindes = {}
+        self.reminders_on = True
 
     def get_schedule(self):
         return self.user_schedules
@@ -16,6 +17,9 @@ class Container:
     
     def get_remindes(self):
         return self.user_remindes
+    
+    def get_reminders_mode(self):
+        return self.reminders_on
 
 cont = Container()
 
