@@ -171,7 +171,7 @@ def get_settings_keyboard():
     builder = InlineKeyboardBuilder()
     #builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='settings_command', value=1))
     builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='settings_command', value=2))
-    #builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='settings_command', value=3))
+    builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='settings_command', value=3))
     #builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='settings_comnand', value=4))
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
     builder.adjust(1)
@@ -252,4 +252,11 @@ def add_reminder_input_keyboard():
 def get_cancel_reminders():
     builder = InlineKeyboardBuilder()
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_reminder_keyboard'))
+    return builder.as_markup()
+
+def settings_reminders(show_reminders):
+    builder = InlineKeyboardBuilder()
+    builder.button(text=(('✅' if show_reminders else '❌') + 'Получать уведомления'), callback_data=NumbersCallbackFactory(action='change_reminders_mode', value=show_reminders))
+    builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
+    builder.adjust(1)
     return builder.as_markup()

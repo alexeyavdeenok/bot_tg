@@ -97,7 +97,7 @@ class Database:
             await cursor.execute("""
             CREATE TABLE IF NOT EXISTS reminders_mode (
                 user_id INTEGER PRIMARY KEY,
-                is_enabled BOOLEAN DEFAULT 0,
+                is_enabled BOOLEAN DEFAULT 1,
                 FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
             )
             """)
@@ -109,6 +109,10 @@ class Database:
             await cursor.execute(
                 "INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)",
                 (user_id, username),
+            )
+            await cursor.execute(
+                "INSERT OR IGNORE INTO reminders_mode (user_id) VALUES (?)",
+                (user_id,),
             )
             logger.info('Пользователь добавлен')
             await self.connection.commit()
@@ -289,6 +293,23 @@ class Database:
             )
             await self.connection.commit()
             logger.info(f"Статус уведомлений для пользователя {user_id} обновлён на {is_enabled}")
+
+    async def migrate_existing_users_to_reminders_mode(self):
+        """Переносит всех существующих пользователей в таблицу reminders_mode."""
+        async with self.connection.cursor() as cursor:
+            # Получение всех пользователей из таблицы users
+            await cursor.execute("SELECT user_id FROM users")
+            users = await cursor.fetchall()
+
+            # Добавление каждого пользователя в таблицу reminders_mode
+            for user in users:
+                user_id = user[0]
+                await cursor.execute(
+                    "INSERT OR IGNORE INTO reminders_mode (user_id) VALUES (?)",
+                    (user_id,),
+                )
+            await self.connection.commit()
+            logger.info(f"Перенесено {len(users)} пользователей в таблицу reminders_mode")
 
 async def get_table_structure():
     db_path = "bot.db"  # Укажите путь к вашей базе данных

@@ -173,6 +173,25 @@ async def reminders_add_todolist(callback: types.CallbackQuery, callback_data: N
     await joblist.import_job_from_todolist(task)
     await callback.message.edit_text(text=str(joblist), reply_markup=reminders_main_keyboard())
 
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'add__schedule'))
+async def reminders_add_schedule(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    user_id = callback.from_user.id
+    schedule = cont.get_schedule()[user_id]
+    list_events = get_important_events_after_today(schedule)
+    await callback.message.edit_text(text='Выберите событие', reply_markup=choose_keyboard_from_schedule([str(i[0]) for i in list_events]))
+
+@reminder_router.callback_query(NumbersCallbackFactory.filter(F.action == 'add_reminder_schedule'))
+async def reminders_add_schedule2(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    user_id = callback.from_user.id
+    index = callback_data.value
+    schedule = cont.get_schedule()[user_id]
+    important_schedule = get_important_events_after_today(schedule)
+    event = important_schedule[index]
+    joblist = cont.get_remindes()[user_id]
+    await joblist.import_job_from_schedule(event[0], event[1])
+    await callback.message.edit_text(text=str(joblist), reply_markup=reminders_main_keyboard())
+
+
 def get_important_events_after_today(schedule):
     today = date.today()  # Получаем текущую дату
     important_events = []
@@ -188,6 +207,7 @@ def get_important_events_after_today(schedule):
                     # Если событие важное, добавляем его в список
                     if event.is_important:
                         important_events.append(
-                            f"{event.title}  {event.start} {day.date_.strftime('%Y-%m-%d')}"
+                            #f"{event.title} {event.start} {day.date_.strftime('%Y-%m-%d')}"
+                            (event, day.date_)
                         )
     return important_events

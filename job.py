@@ -233,7 +233,7 @@ class Job:
 
                 # Если парсинг и проверка на будущее успешны, устанавливаем атрибуты
                 self.trigger = DateTrigger(run_date=dt)
-                self.str_trgger_time = dt.strftime("%d.%m.%y %H:%M") # Сохраняем объект datetime
+                self.str_trgger_time = dt.strftime("%H:%M %d.%m.%y") # Сохраняем объект datetime
 
             except ValueError as e:
                  # Логируем ошибку и перебрасываем исключение с более понятным сообщением

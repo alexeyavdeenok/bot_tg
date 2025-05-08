@@ -3,6 +3,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 import os
 from aiogram import Bot
+from logger import logger
 
 async def init_db():
     await db.connect()
@@ -15,6 +16,10 @@ bot = Bot(token=BOT_TOKEN)
 
 async def send_reminder(user_id, message):
     try:
-        await bot.send_message(user_id, f"Напоминание: {message}")
+        if await db.get_reminders_mode(user_id) == 1:
+            await bot.send_message(user_id, f"Напоминание: {message}")
+            logger.info(f"Напоминание успешно отправлено пользователю {user_id}: {message}")
+        else:
+            logger.info(f"Напоминание для пользователя {user_id} не отправлено, так как режим напоминаний отключен")
     except Exception as e:
-        print(f"Ошибка: {e}")
+        logger.error(f"Ошибка при отправке напоминания пользователю {user_id}: {e}", exc_info=True)

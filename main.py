@@ -87,9 +87,19 @@ async def show_settings(callback: types.CallbackQuery, callback_data: NumbersCal
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'settings_command'))
 async def change_settings(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
     value = callback_data.value
-    show_complete = cont.user_todolist[callback.from_user.id].show_completed
     if value == 2:
+        show_complete = cont.user_todolist[callback.from_user.id].show_completed
         await callback.message.edit_text(text=f'TODO лист\n{'~' * 25}', reply_markup=settings_todolist(show_complete))
+    elif value == 3:
+        show_reminders = await db.get_reminders_mode(callback.from_user.id)
+        await callback.message.edit_text(text=f'Напоминания\n{'~' * 25}', reply_markup=settings_reminders(show_reminders))
+
+@dp.callback_query(NumbersCallbackFactory.filter(F.action == 'change_reminders_mode'))
+async def change_reminders_mode(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
+    value = callback_data.value
+    user_id = callback.from_user.id
+    await db.update_reminders_mode(user_id, not(value))
+    await callback.message.edit_text(text=f'Напоминания\n{'~' * 25}', reply_markup=settings_reminders(not(value)))
 
 @dp.callback_query(NumbersCallbackFactory.filter(F.action == 'settings_todolist'))
 async def change_settings2(callback: types.CallbackQuery, callback_data: NumbersCallbackFactory):
