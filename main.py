@@ -50,7 +50,7 @@ async def cmd_start(message: types.Message):
     schedule.save_to_database()
     
     logger.info(f"Пользователь {user_id} запустил бота и создал расписание")
-    await message.answer('Привет! Я простой бот. Твое расписание создано.')
+    await message.answer('Привет!')
 
 @dp.message(Command('menu'))
 async def cmd_menu(message: types.Message):

@@ -5,6 +5,7 @@ class Container:
         self.show_complete = False
         self.user_remindes = {}
         self.reminders_on = True
+        self.active_games = {}
 
     def get_schedule(self):
         return self.user_schedules

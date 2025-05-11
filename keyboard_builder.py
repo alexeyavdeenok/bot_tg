@@ -260,3 +260,32 @@ def settings_reminders(show_reminders):
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
     builder.adjust(1)
     return builder.as_markup()
+
+class InviteCallbackFactory(CallbackData, prefix="invite"):
+    action: str
+    game_id: Optional[str] = None
+    inviter_id: Optional[int] = None
+
+def get_invite_action_keyboard():
+    """
+    Клавиатура для отправки приглашения.
+    """
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📩 Пригласить пользователя",
+        callback_data=NumbersCallbackFactory(action="invite")
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_invite_keyboard(game_id: str, inviter_id: int):
+    """
+    Клавиатура для принятия приглашения.
+    """
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="✅ Принять приглашение",
+        callback_data=InviteCallbackFactory(action="accept", game_id=game_id, inviter_id=inviter_id)
+    )
+    builder.adjust(1)
+    return builder.as_markup()
