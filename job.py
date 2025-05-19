@@ -31,6 +31,7 @@ class JobList:
                 self.job_list.append(job)
             except ValueError as e:
                 logger.error(f"Ошибка при загрузке напоминания {job_name}: {e}")
+                await self.db.delete_reminder(job_id)
 
     async def add_job(self, job_name, trigger_type, trigger_time):
         job = Job(job_name, trigger_type, trigger_time)

@@ -1,6 +1,6 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
-from typing import Optional
+from typing import Optional, Tuple
 from aiogram.filters.callback_data import CallbackData
 
 empty_star = "☆"   
@@ -113,6 +113,7 @@ def get_menu():
     builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='to_schedule'))
     builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='TODO_list'))
     builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='reminders'))
+    builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='game'))
     builder.button(text='Информация', callback_data=NumbersCallbackFactory(action='info'))
     builder.button(text='Настройки', callback_data=NumbersCallbackFactory(action='settings'))
     builder.adjust(1)
@@ -172,7 +173,7 @@ def get_settings_keyboard():
     #builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='settings_command', value=1))
     builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='settings_command', value=2))
     builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='settings_command', value=3))
-    #builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='settings_comnand', value=4))
+    #builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='settings_command', value=4))
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
     builder.adjust(1)
     return builder.as_markup()
@@ -189,7 +190,7 @@ def info_keyboard():
     builder.button(text='Расписание', callback_data=NumbersCallbackFactory(action='info_command', value=1))
     builder.button(text='TODO лист', callback_data=NumbersCallbackFactory(action='info_command', value=2))
     builder.button(text='Напоминания', callback_data=NumbersCallbackFactory(action='info_command', value=3))
-    builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='info_comnand', value=4))
+    builder.button(text='Игра', callback_data=NumbersCallbackFactory(action='info_command', value=4))
     builder.button(text='Назад', callback_data=NumbersCallbackFactory(action='cancel_to_menu'))
     builder.adjust(1)
     return builder.as_markup()
@@ -266,17 +267,9 @@ class InviteCallbackFactory(CallbackData, prefix="invite"):
     game_id: Optional[str] = None
     inviter_id: Optional[int] = None
 
-def get_invite_action_keyboard():
-    """
-    Клавиатура для отправки приглашения.
-    """
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="📩 Пригласить пользователя",
-        callback_data=NumbersCallbackFactory(action="invite")
-    )
-    builder.adjust(1)
-    return builder.as_markup()
+class MoveCallbackFactory(CallbackData, prefix="move"):
+    action: str
+    value: str
 
 def get_invite_keyboard(game_id: str, inviter_id: int):
     """
@@ -284,8 +277,16 @@ def get_invite_keyboard(game_id: str, inviter_id: int):
     """
     builder = InlineKeyboardBuilder()
     builder.button(
-        text="✅ Принять приглашение",
+        text="Присоединиться",
         callback_data=InviteCallbackFactory(action="accept", game_id=game_id, inviter_id=inviter_id)
     )
     builder.adjust(1)
+    return builder.as_markup()
+
+def game_keyboard(list_game):
+    builder = InlineKeyboardBuilder()
+    for i in range(len(list_game)):
+        for j in range(len(list_game[i])):
+            builder.button(text=str(list_game[i][j]), callback_data=MoveCallbackFactory(action='move', value=(str(i) + ' ' + str(j))))
+    builder.adjust(3)
     return builder.as_markup()

@@ -1,6 +1,6 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandStart
 from logger import logger  # Импортируем наш логгер
 from database2 import *
 from keyboard_builder import *
@@ -21,6 +21,7 @@ from init_database import *
 from container import cont
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from database2 import db
+from tictactoe_bot import *
 
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage, parse_mode="HTML")
@@ -142,14 +143,18 @@ def add_jobs_to_scheduler():
     """Добавляет все задачи из JobList пользователей в шедулер."""
     for user_id, job_list in cont.user_remindes.items():
         for job in job_list.job_list:  # Предполагаем, что job_list — это список задач в JobList
-            scheduler.add_job(
-                send_reminder,
-                trigger=job.trigger,  # Триггер задачи (например, дата или интервал)
-                args=[user_id, job.job_name],  # Аргументы для функции напоминания
-                id=str(job.job_id),  # Уникальный ID задачи
-                replace_existing=True  # Заменяем задачу, если она уже существует
-            )
-            print(f"Задача {job.job_name} для пользователя {user_id} добавлена в шедулер")
+            try:
+                scheduler.add_job(
+                    send_reminder,
+                    trigger=job.trigger,  # Триггер задачи (например, дата или интервал)
+                    args=[user_id, job.job_name],  # Аргументы для функции напоминания
+                    id=str(job.job_id),  # Уникальный ID задачи
+                    replace_existing=True  # Заменяем задачу, если она уже существует
+                )
+                print(f"Задача {job.job_name} для пользователя {user_id} добавлена в шедулер")
+            except ValueError as e:
+                logger.error(f"Ошибка при добавлении задачи {job.job_name} для пользователя {user_id}: {e}")
+                db.delete_reminder(job.job_id)
 
 async def main():
     try:
@@ -158,6 +163,7 @@ async def main():
         dp.include_router(todolist_router)
         dp.include_router(schedule_router)
         dp.include_router(reminder_router)
+        dp.include_router(game_router)
         await load_all_job_lists()
         add_jobs_to_scheduler()
         scheduler.start()
