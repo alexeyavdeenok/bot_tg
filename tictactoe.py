@@ -53,8 +53,7 @@ class TicTacToe:
         return False
     
     def return_str_field(self):
-        str_field = f'Ход игрока {'1' if self.current_player == self.players_by_id["id_1"] else '2'}\n'
-        str_field += '====================\n'
+        str_field = '\n'
         for i in range(3):
             for j in range(3):
                 str_field += self.field[i][j].replace(' ', '⬜️')
